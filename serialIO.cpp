@@ -6,4 +6,10 @@
 // serial output: send back infos about position, so the program can know how much of the pattern has already be done
 
 
+#include <Arduino.h>
 #include "planner.h"
+#include "serialIO.h"
+
+void serial_init(){
+	
+}

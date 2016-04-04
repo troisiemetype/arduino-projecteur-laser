@@ -15,11 +15,20 @@
 #include "driver.h"
 #include "I2C.h"
 #include "serialIO.h"
+#include "settings.h"
 
 void setup(){
+
+	//calling the init functions of all program parts
+	serial_init();
+	I2C_init();
+	planner_init();
+	driver_init();
+
+	#define DISPATCH(func) if (func == 0) return
 
 }
 
 void loop(){
-
+	
 }

@@ -7,7 +7,9 @@
    Finally, these new values are sent to the external DAC trough I2C.
 */
 
-#ifndef driver_h
-#define driver_h
+#ifndef DRIVER_H
+#define DRIVER_H
+
+void driver_init();
 
 #endif

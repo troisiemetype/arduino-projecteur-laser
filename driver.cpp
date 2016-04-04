@@ -7,4 +7,11 @@
    Finally, these new values are sent to the external DAC trough I2C.
 */
 
+#include <Arduino.h>
+
+#include "driver.h"
 #include "I2C.h"
+
+void driver_init(){
+	
+}
