@@ -9,7 +9,8 @@
 #include <Arduino.h>
 #include "planner.h"
 #include "serialIO.h"
+#include "settings.h"
 
 void serial_init(){
-	
+	Serial.begin(115200, SERIAL_CONFIG);
 }
