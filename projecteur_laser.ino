@@ -23,11 +23,10 @@ void setup(){
 	I2C_init();
 	planner_init();
 	driver_init();
-
-	#define DISPATCH(func) if (func == 0) return
-
 }
 
+#define DISPATCH(func) if (func == 0) return
+
 void loop(){
-	
+	serial_getData();
 }
