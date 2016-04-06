@@ -10,12 +10,11 @@
 
 
 //includes
-
+#include "settings.h"
+#include "serialIO.h"
+#include "I2C.h"
 #include "planner.h"
 #include "driver.h"
-#include "I2C.h"
-#include "serialIO.h"
-#include "settings.h"
 
 void setup(){
 

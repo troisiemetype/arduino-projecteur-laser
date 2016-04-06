@@ -6,10 +6,16 @@
 #include <Arduino.h>
 
 #include "I2C.h"
+#include "settings.h"
 #include <Wire.h>
+
+byte _I2C_address;
+byte _commandByte;
+byte _addressByte;
 
 //this function initialize the DAC
 void I2C_init(){
+
 	Wire.begin();												// Opens the connection
 	_I2C_address = I2C_ADDR;									// Sets the addres of the DAC
 	_I2C_address = _I2C_address << 1;							// Shift the adress 1bit left to be in write mode (never need read mode)
@@ -19,7 +25,7 @@ void I2C_init(){
 	Wire.write(_commandByte);												
 	Wire.write(0);
 	Wire.write(7);
-	Wire.endtransmission();
+	Wire.endTransmission();
 
 	I2C_write('L', 0x00);										// sets the laser to 0
 	I2C_write('X', 0x80);										// and all axes at mid course
@@ -53,7 +59,7 @@ void I2C_write(char axe, int pos){
 	Wire.write(_commandByte);										// sends the command byte and the address byte
 	Wire.write(pos >> 4);
 	Wire.write(pos);
-	Wire.endtransmission();
+	Wire.endTransmission();
 }
 
 void I2C_update(){
@@ -63,5 +69,5 @@ void I2C_update(){
 	Wire.write(_commandByte);										// sends the command byte and the address byte
 	Wire.write(0);
 	Wire.write(0);
-	Wire.endtransmission();
+	Wire.endTransmission();
 }
