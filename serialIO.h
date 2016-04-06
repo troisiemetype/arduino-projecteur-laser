@@ -20,7 +20,7 @@
 
 
 void serial_init();
-void serial_getData();
+void serial_get_data();
 void _serial_parser();
 
 

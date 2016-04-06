@@ -28,5 +28,6 @@ void setup(){
 #define DISPATCH(func) if (func == 0) return
 
 void loop(){
-	serial_getData();
+	serial_get_data();
+
 }

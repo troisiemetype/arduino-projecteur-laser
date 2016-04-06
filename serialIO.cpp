@@ -24,7 +24,8 @@ void serial_init(){
 }
 
 // this function just look at the beggining of a json string
-void serial_getData(){
+void serial_get_data(){
+	if (planner_get_available() < 4) return;
 	if (Serial.read() == '{'){												// Waits for the start of a JSON string
 		_parserState = PARSER_START_JSON;									// sets the status of the parser
 		delay(10);															// waits a bit for the following data to come
