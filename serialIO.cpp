@@ -53,6 +53,11 @@ void _serial_parser(){
 			_parserState = PARSING_PAIR_ERROR;
 			continue;
 		}
+		if ((Serial.peek() < '0' || Serial.peek() > '9')){					// verifies that the following byte is a number
+			if (Serial.peek() !='-'){										// It also can be a minux sign
+				_parserState = PARSING_PAIR_ERROR;							// sets stauts, then continue to next value
+				continue;			}
+		}
 		_parserState = PARSING_VALUE;										// Once the var has been recorded, one must find its value. Sets status
 		inValue = Serial.parseInt();										// Recording the value
 		inByte = Serial.read();												// looking at the following byte
