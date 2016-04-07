@@ -16,6 +16,8 @@ typedef struct moveBuffer {
 
 	byte active;												// remember if the buffer is active, i.e. if it has been set or if it's empty
 
+	int ID;														// Stores the ID sent by the program
+
 	int posX;													// The X position we must go to
 	int posY;													// Ditto Y
 	int posL;													// Ditto Laser (compute as if it were a position)
@@ -35,8 +37,7 @@ typedef struct moveBuffer {
 
 // this structure stores the states of the buffers
 typedef struct moveBufferPool {
-	struct moveBuffer *queue;									// Stores the address of the queue buffer, i.e. where to write next incoming data
-	struct moveBuffer *write;									// Stores the address of the write buffer, i.e. where to write
+	struct moveBuffer *write;									// Stores the address of the write buffer, i.e. where to write incomming data
 	struct moveBuffer *run;										// Stores the address of the run buffer, i.e. which one is currently executing
 
 	byte available;												// How much buffers are available for write
@@ -47,6 +48,8 @@ typedef struct moveBufferPool {
 void planner_init();
 void planner_init_buffer();
 byte planner_get_available();
-void planner_set_buffer(int x, int y, int l, byte mode);
+void planner_set_buffer(int posX, int posY, int posL, byte mode, byte set);
+void planner_free_buffer();
+
 
 #endif

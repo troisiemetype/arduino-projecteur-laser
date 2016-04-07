@@ -20,7 +20,6 @@ void planner_init_buffer(){
 
 	memset(&mbp, 0, sizeof(mbp));
 
-	mbp.queue = &mbp.pool[0];
 	mbp.write = &mbp.pool[0];
 	mbp.run = &mbp.pool[0];
 	mbp.available = BUFFER_POOL_SIZE;
@@ -42,14 +41,46 @@ byte planner_get_available(){
 	return mbp.available;
 }
 
-void planner_set_buffer(int x, int y, int l, byte mode){
-	moveBuffer_t *bf = mbp.queue;
-	mbp.write = mbp.queue;
-	bf->posX = x;
-	bf->posY = y;
-	bf->posL = l;
+void planner_set_buffer(int posX, int posY, int posL, byte mode, byte set){
+	moveBuffer_t *bf = mbp.write;
+
+	if (!(set &= 0x1000)){
+		posX = bf->pv->posX;
+	}
+	if (!(set &= 0x0100)){
+		posY = bf->pv->posY;
+	}
+	if (!(set &= 0x0010)){
+		posL = bf->pv->posL;
+	}
+	if (!(set &= 0x0001)){
+		mode = bf->pv->mode;
+	}
+
+	bf->active = 1;
+	bf->posX = posX;
+	bf->posY = posY;
+	bf->posL = posL;
 	bf->mode = mode;
 
-	mbp.queue = bf->nx;
+	mbp.write = bf->nx;
+	mbp.available--;
 
 }
+
+void planner_free_buffer(moveBuffer_t *bf){
+	moveBuffer_t *pv;
+	moveBuffer_t *nx;
+
+	pv = bf->pv;
+	nx = bf->nx;
+
+	memset(bf, 0, sizeof(*bf));
+
+	bf->pv = pv;
+	bf->nx = nx;
+
+	mbp.available++;
+
+}
+

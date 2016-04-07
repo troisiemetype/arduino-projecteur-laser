@@ -16,74 +16,132 @@
 #include "serialIO.h"
 #include "settings.h"
 
-byte _parserState = PARSER_IDLE;
+byte _parser_state = 0;														// Stores the last operation the parser has done
+byte _parser_data_received = 0;												// Stores the values that have been received
+																			// Each set bit is a received value, e.g. 1010 is X & L set, Y & mode not
 
 void serial_init(){
 	Serial.begin(115200, SERIAL_CONFIG);
 	Serial.setTimeout(100);
 }
 
-// this function just look at the beggining of a json string
+/* this function just look at the beggining of a json string
+ * 
+ */
 void serial_get_data(){
-	if (planner_get_available() < 4) return;
-	if (Serial.read() == '{'){												// Waits for the start of a JSON string
-		_parserState = PARSER_START_JSON;									// sets the status of the parser
+	byte inByte = Serial.read();
+	if (inByte == '{'){
 		delay(10);															// waits a bit for the following data to come
 		_serial_parser();													// calls the parser
-	} else {
-		_parserState = PARSER_IDLE;
-	}
+	} else if (inByte == '$'){
+		// empty for now
+		Serial.println(planner_get_available());
+	} else if (inByte == '!'){
+		// empty for now
+	} else if (inByte == '~'){
+		// Empty for now
+ 	} else if (inByte == '%'){
+ 		// empty for now
+ 	}
 
 }
 
-// this function parse the json string it receives
-void _serial_parser(){
+/* this function parse the json string it receives
+ * The json string must formed like that:
+ * {"var1":value1,"var2":value2,...,"varN":valueN}
+ * The loop turns while there is available data to read
+ * - First it looks for incomming char.
+ * - If it's an openning brace, it's the start of a json string, so it loops again
+ * - If it's a comma, there should be a new var/value pair, so it loops again
+ * - If it's a closing brace, it ends the loop to compute values
+ * - If it's a quote mark, that is the start of a var/value pair, as long as there is data available
+ * - If it finds one, it then reads the name of the var until the next quote mark.
+ * - After the value, it looks for a colon that should separate th name of the var from its value.
+ *   If there is no, it returns the function with an error
+ * - The following value should be a number, so it test if it's one. If it's not, it tests for a minus sign. Else it returns with an error
+ * - If it's a number (positive or negative) it records it as the current value
+ * - Then it tests the name of the var received against what it should be.
+ * - If ok, it records the value and sets a flag so it's known that the value has been set.
+ * - If one or several flags have been set, it sends the data to the planner, that populate a new buffer
+ */
+byte _serial_parser(){
 	String inVar;															// declaring vars. inVar records the name of the var passed trough JSON
 	byte inByte = 0;														// The byte read
-	int inValue = 0;														// the value read
+	int inValue = 0;														// The value read
+
+	_parser_data_received = 0;												// Keeps track of which data have been received
+
+	int posX;																// Stores the values received
+	int posY;
+	int posL;
+	byte mode;
+
 	while (Serial.available()){												// If data available
+		inByte = Serial.read();
+		Serial.println(char(inByte));
 
-		if (Serial.read() == '"'){											// Look for a quote mark (start of a var/value pair)...
-			_parserState = PARSING_VAR;										// Sets the parser status
+
+		if (inByte == '{'){													// Look for an openning brace for the beginning of the json string
+			_parser_state = PARSING_START_JSON;
+			continue;
+		} else if (inByte == '"'){											// Look for a quote mark (start of a var/value pair)...
+			_parser_state = PARSING_VAR;									// Sets the parser status
 			inVar = Serial.readStringUntil('"');							// records the name of the var sent
-		} else {															// ...else go on
+		} else if (inByte == ','){													// If it's a comma, loop again to a new var/value pair
+			_parser_state = PARSING_START_JSON;
 			continue;
-		}
-
-		if (!Serial.read() == ':'){											// Look for a colon after the var, else stop the loop
-			_parserState = PARSING_PAIR_ERROR;
-			continue;
-		}
-		if ((Serial.peek() < '0' || Serial.peek() > '9')){					// verifies that the following byte is a number
-			if (Serial.peek() !='-'){										// It also can be a minux sign
-				_parserState = PARSING_PAIR_ERROR;							// sets stauts, then continue to next value
-				continue;			}
-		}
-		_parserState = PARSING_VALUE;										// Once the var has been recorded, one must find its value. Sets status
-		inValue = Serial.parseInt();										// Recording the value
-		inByte = Serial.read();												// looking at the following byte
-
-		if (inVar == "X"){													// Sets the right value to the right var
-			Serial.print("X = ");
-			Serial.println(inValue);
-		} else if (inVar == "Y"){
-			Serial.print("Y = ");
-			Serial.println(inValue);
-		} else if (inVar == "L"){
-			Serial.print("L = ");
-			Serial.println(inValue);
-		} else if (inVar == "mode"){
-			Serial.print("mode = ");
-			Serial.println(inValue);
+		} else if( inByte == '}'){											// Else if it's a closing brace, end of the JSON string
+			_parser_state = PARSING_END_JSON;								// Update status
+			break;															// And quit while loop to store the received data
 		} else {
 			continue;
 		}
 
-		if (inByte == ','){													// If it's a comma, loop again to a new var/value pair
-			continue;
-		} else if( inByte == '{'){											// Else if it's a closing brace, end of the JSON string
-			_parserState = PARSER_END_JSON;									// Update status
-			return;															// And quit function
+		if (!Serial.read() == ':'){											// Look for a colon after the var, else stop the loop
+			_parser_state = PARSING_PAIR_ERROR;
+			return _parser_state;
 		}
+
+		if ((Serial.peek() < '0' || Serial.peek() > '9')){					// verifies that the following byte is a number
+			if (Serial.peek() !='-'){										// It also can be a minux sign for negative number
+				_parser_state = PARSING_PAIR_ERROR;							// sets statuts, then continue to next value
+				return _parser_state;
+			}
+		}
+
+		_parser_state = PARSING_VALUE;										// Once the var has been recorded, one must find its value. Sets status
+		inValue = Serial.parseInt();										// Recording the value
+
+		if (inVar == "X"){													// Sets the right value to the right var
+			_parser_data_received |= 8;
+			posX = inValue;
+			Serial.print("X=");
+			Serial.println(posX);
+		} else if (inVar == "Y"){
+			_parser_data_received |= 4;
+			posY = inValue;
+			Serial.print("Y=");
+			Serial.println(posY);
+		} else if (inVar == "L"){
+			_parser_data_received |= 2;
+			posL = inValue;
+			Serial.print("laser=");
+			Serial.println(posL);
+		} else if (inVar == "mode"){
+			_parser_data_received |= 1;
+			mode = inValue;
+			Serial.print("mode ");
+			Serial.println(mode);
+		} else {
+			continue;
+		}
+		Serial.print("_parser_data_received: ");
+		Serial.println(_parser_data_received, BIN);
 	}
+
+	if (_parser_data_received != 0){
+		Serial.println("populates buffer");
+		planner_set_buffer(posX, posY, posL, mode, _parser_data_received);	// Populates the buffer with the values received
+	}
+	return _parser_state = PARSING_OK;
 }
