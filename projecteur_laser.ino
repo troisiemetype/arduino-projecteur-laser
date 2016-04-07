@@ -29,5 +29,6 @@ void setup(){
 
 void loop(){
 	serial_get_data();
+	planner_plan_move();
 
 }

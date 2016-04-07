@@ -17,4 +17,9 @@
 
 #define DAC_SIZE				12						// Number of bit the DAC uses
 
+#define DEFAULT_SPEED			100						// Default speed of the projecteur
+
+#define CLOCK_SPEED				16000000				// Frequency of the board
+#define ISR_FREQUENCY			100						// Frequency of the interrupt
+
 #endif

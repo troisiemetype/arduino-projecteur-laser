@@ -11,5 +11,5 @@
 #define DRIVER_H
 
 void driver_init();
-
+void driver_interrupt_init();
 #endif

@@ -22,7 +22,8 @@ byte _parser_data_received = 0;												// Stores the values that have been r
 
 void serial_init(){
 	Serial.begin(115200, SERIAL_CONFIG);
-	Serial.setTimeout(100);
+	Serial.setTimeout(1);
+	serial_send_message("liaison série initialisée");
 }
 
 /* this function just look at the beggining of a json string
@@ -30,6 +31,11 @@ void serial_init(){
  */
 void serial_get_data(){
 	byte inByte = Serial.read();
+	if (planner_get_available() < 4){
+		serial_send_message("no buffer available");
+		return;
+	}
+
 	if (inByte == '{'){
 		delay(10);															// waits a bit for the following data to come
 		_serial_parser();													// calls the parser
@@ -71,14 +77,15 @@ byte _serial_parser(){
 
 	_parser_data_received = 0;												// Keeps track of which data have been received
 
-	int posX;																// Stores the values received
-	int posY;
-	int posL;
-	byte mode;
+	int id = 0;																	// Stores the values received
+	int posX = 0;
+	int posY = 0;
+	int posL = 0;
+	int speed = 0;
+	byte mode = 0;
 
 	while (Serial.available()){												// If data available
 		inByte = Serial.read();
-		Serial.println(char(inByte));
 
 
 		if (inByte == '{'){													// Look for an openning brace for the beginning of the json string
@@ -112,36 +119,58 @@ byte _serial_parser(){
 		_parser_state = PARSING_VALUE;										// Once the var has been recorded, one must find its value. Sets status
 		inValue = Serial.parseInt();										// Recording the value
 
-		if (inVar == "X"){													// Sets the right value to the right var
-			_parser_data_received |= 8;
+		if (inVar == "ID"){													// Sets the right value to the right var
+			_parser_data_received |= 32;
+			id = inValue;
+			serial_send_pair("ID", id);
+		} else if (inVar == "X"){
+			_parser_data_received |= 16;
 			posX = inValue;
-			Serial.print("X=");
-			Serial.println(posX);
+			serial_send_pair("X", posX);
 		} else if (inVar == "Y"){
-			_parser_data_received |= 4;
+			_parser_data_received |= 8;
 			posY = inValue;
-			Serial.print("Y=");
-			Serial.println(posY);
+			serial_send_pair("Y", posY);
 		} else if (inVar == "L"){
-			_parser_data_received |= 2;
+			_parser_data_received |= 4;
 			posL = inValue;
-			Serial.print("laser=");
-			Serial.println(posL);
+			serial_send_pair("L", posL);
+		} else if (inVar == "speed"){
+			_parser_data_received |= 2;
+			speed = inValue;
+			serial_send_pair("speed", speed);
 		} else if (inVar == "mode"){
 			_parser_data_received |= 1;
 			mode = inValue;
-			Serial.print("mode ");
-			Serial.println(mode);
+			serial_send_pair("mode", mode);
 		} else {
 			continue;
 		}
-		Serial.print("_parser_data_received: ");
-		Serial.println(_parser_data_received, BIN);
 	}
 
 	if (_parser_data_received != 0){
-		Serial.println("populates buffer");
-		planner_set_buffer(posX, posY, posL, mode, _parser_data_received);	// Populates the buffer with the values received
+		serial_send_message("populates buffer");
+		planner_set_buffer(id, posX, posY, posL, speed, mode, _parser_data_received);	// Populates the buffer with the values received
 	}
 	return _parser_state = PARSING_OK;
+}
+
+void serial_send_pair(String name, double value){
+	Serial.print("{\"");
+	Serial.print(name);
+	Serial.print("\":");
+	Serial.print(value);
+	Serial.print("}");
+	Serial.println();
+}
+
+void serial_send_message(String message){
+	Serial.print("{\"message\":\"");
+	Serial.print(message);
+	Serial.print("\"}");
+	Serial.println();
+}
+
+void serial_step(){
+	Serial.println("step");
 }

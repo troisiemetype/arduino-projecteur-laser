@@ -7,6 +7,7 @@
 
 #include "I2C.h"
 #include "settings.h"
+#include "serialIO.h"
 #include <Wire.h>
 
 byte _I2C_address;
@@ -31,6 +32,8 @@ void I2C_init(){
 	I2C_write('X', 0x80);										// and all axes at mid course
 	I2C_write('Y', 0x80);
 	I2C_update();
+
+	serial_send_message("liaison I2C initialisée");
 
 
 

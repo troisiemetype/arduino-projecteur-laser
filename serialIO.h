@@ -24,6 +24,8 @@
 void serial_init();
 void serial_get_data();
 byte _serial_parser();
-
+void serial_send_pair(String text, double value);
+void serial_send_message(String message);
+void serial_step();
 
 #endif
