@@ -54,7 +54,7 @@ byte planner_get_available(){
 // This sets up a buffer with the data received from Serial
 /* It first verifies for each parameter if it has been set or if we copy those of the previous buffer
  * then it coppies these parameters to the buffer
- * last, it sets this buffer to be queued, steps up the write pointer and decrease the available counter
+ * last, it steps up the write pointer and decrease the available counter
  */
 void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mode, byte set){
 	moveBuffer *bf = mbp.write;
@@ -79,14 +79,14 @@ void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mo
 		mode = bf->pv->mode;
 	}
 
-	bf->active = 1;															// Copies the values to the buffer
-	bf->id = id;
+	bf->active = 1;															// active = 1 tells that values have been load in the buffer
+	bf->id = id;															// Copies the values to the buffer
 	bf->posX = posX;
 	bf->posY = posY;
 	bf->posL = posL;
 	bf->speed = speed;
 	bf->mode = mode;
-	bf->compute = 0;
+	bf->compute = 0;														// Compute = 0 says that the buffer needs to be planned
 
 	// steps up the write pointer.
 	mbp.write = bf->nx;
@@ -115,11 +115,13 @@ void planner_free_buffer(moveBuffer *bf){
 }
 
 // This function plans the move for a buffer
+/* It first get the pointer to the queue buffer
+ */
 void planner_plan_move(){
 	moveBuffer *bf = mbp.queue;
 	moveBuffer *pv = bf->pv;
-	if (bf->compute == 1){													// If compute == 1, the buffer has already been computed
-		return;
+	if (bf->compute == 1 || bf->active == 0){								// If compute == 1, the buffer has already been computed
+		return;																// If Compute == 0, the buffer is empty
 	}
 
 	if (bf->mode == 1){														// Look at the type of move: O is fast (placement), 1 is calibrated

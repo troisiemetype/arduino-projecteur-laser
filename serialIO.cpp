@@ -155,6 +155,7 @@ byte _serial_parser(){
 	return _parser_state = PARSING_OK;
 }
 
+// This function write a pair of data to Serial, formated in json
 void serial_send_pair(String name, double value){
 	Serial.print("{\"");
 	Serial.print(name);
@@ -164,6 +165,7 @@ void serial_send_pair(String name, double value){
 	Serial.println();
 }
 
+// This function writes a simple message to Serial, formated in json
 void serial_send_message(String message){
 	Serial.print("{\"message\":\"");
 	Serial.print(message);
@@ -171,6 +173,7 @@ void serial_send_message(String message){
 	Serial.println();
 }
 
+// This function is for debugging purpose: it prints "step" on Serial. Used to replace breakpoints.
 void serial_step(){
 	Serial.println("step");
 }
