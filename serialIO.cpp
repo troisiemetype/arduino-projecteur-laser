@@ -43,8 +43,11 @@ void serial_get_data(){
 	} else if (inByte == '$'){
 		// empty for now
 		Serial.println(planner_get_available());
-	} else if (inByte == '!'){
+	} else if (inByte == 'p'){
+		serial_send_position();
 		// empty for now
+	} else if (inByte == '!'){
+		// Empty for now
 	} else if (inByte == '~'){
 		// Empty for now
  	} else if (inByte == '%'){
@@ -78,7 +81,7 @@ byte _serial_parser(){
 
 	_parser_data_received = 0;												// Keeps track of which data have been received
 
-	int id = 0;																	// Stores the values received
+	int id = 0;																// Stores the values received
 	int posX = 0;
 	int posY = 0;
 	int posL = 0;
@@ -181,9 +184,9 @@ void serial_step(){
 
 // This function send the current position
 void serial_send_position(){
-	moveBuffer * bf = planner_get_run_buffer();
-//	serial_send_pair("pos X = ", bf->nowX);
-//	serial_send_pair("pos Y = ", bf->nowY);
-//	serial_send_pair("pos L = ", bf->nowL);
+	driverState * ds = driver_get_ds();
 
+	serial_send_pair("Pos X = ", ds->now[0]);
+	serial_send_pair("Pos Y = ", ds->now[1]);
+	serial_send_pair("Pos L = ", ds->now[2]);
 }

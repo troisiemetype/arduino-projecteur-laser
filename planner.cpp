@@ -9,6 +9,7 @@
 #include "planner.h"
 #include "serialIO.h"
 #include "settings.h"
+#include "driver.h"
 
 moveBufferPool mbp;
 
@@ -55,6 +56,24 @@ moveBuffer* planner_get_run_buffer(){
 	return mbp.run;
 }
 
+// This function updates the buffer pool with the next buffer
+void planner_set_next_buffer(byte buffer){
+	switch(buffer){
+		case 0:																// write buffer
+			mbp.write = mbp.write->nx;
+			break;
+		case 1:																// queue buffer
+			mbp.queue = mbp.queue->nx;
+			break;
+		case 2:																// run buffer
+			mbp.run = mbp.run->nx;
+			break;
+		default:
+			break;
+	}
+
+}
+
 // This sets up a buffer with the data received from Serial
 /* It first verifies for each parameter if it has been set or if we copy those of the previous buffer
  * then it coppies these parameters to the buffer
@@ -62,25 +81,41 @@ moveBuffer* planner_get_run_buffer(){
  */
 void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mode, byte set){
 	moveBuffer *bf = mbp.write;
+	moveBuffer *pv = bf->pv;
 
-	//These tests verifies if the value has been sent by the computer.
-	if (!(set & 32)){
-		id = bf->pv->id;
+	// Here we want to know which is the start position of this move.
+	// If the previous buffer is populated, the start position is the end position of this buffer, so we copy it
+	// If the previous buffer is empty, then we have to use the current position, that is stored in the driverState struct
+	if (pv->active == 0){													// verifies how is the buffer queue
+		volatile double * position = driver_get_position();					// Get the driver state
+		for (int i=0; i<3; i++){
+			bf->now[i] = position[i];										// If previous buffer is empty, set now[] as the current position
+		}
+	} else {																// If previous buffer is populated, now[] will be the previous output
+		for (int i=0; i<3; i++){
+			bf->now[i] = pv->pos[i];
+		}
 	}
+
+	// These tests verifies if the value has been sent by the computer.
+	// A value that hasn't been sent by the computer program should be copy for the previous position, i.e.:
+	// driver state position is the move is stopped
+	// previous buffer end position if it's populated
+	// So we just copy the values that have been set above
 	if (!(set & 16)){
-		posX = bf->pv->pos[0];
+		posX = bf->now[0];
 	}
 	if (!(set & 8)){
-		posY = bf->pv->pos[1];
+		posY = bf->now[1];
 	}
 	if (!(set & 4)){
-		posL = bf->pv->pos[2];
+		posL = bf->now[2];
 	}
 	if (!(set & 2)){
-		speed = bf->pv->speed;
+		speed = pv->speed;
 	}
 	if (!(set & 1)){
-		mode = bf->pv->mode;
+		mode = pv->mode;
 	}
 
 	bf->active = 1;															// active = 1 tells that values have been load in the buffer
@@ -93,7 +128,8 @@ void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mo
 	bf->compute = 0;														// Compute = 0 says that the buffer needs to be planned
 
 	// steps up the write pointer.
-	mbp.write = bf->nx;
+	planner_set_next_buffer(0);
+//	mbp.write = bf->nx;
 	mbp.available--;
 
 }
@@ -123,23 +159,22 @@ void planner_free_buffer(moveBuffer*bf){
  */
 void planner_plan_move(){
 	moveBuffer *bf = mbp.queue;
-	moveBuffer *pv = bf->pv;
 	if (bf->compute == 1 || bf->active == 0){								// If compute == 1, the buffer has already been computed
 		return;																// If Compute == 0, the buffer is empty
 	}
 
 	if (bf->mode == 1){														// Look at the type of move: O is fast (placement), 1 is calibrated
 		for (int i=0; i<3; i++){											// Compute the delta between previous and goal position
-			bf->delta[i] = bf->pos[i] - pv->pos[i];
+			bf->delta[i] = bf->pos[i] - bf->now[i];
 		}
-		bf->deltaTotal = sqrt(pow(bf->delta[0], 2) + pow(bf->delta[1], 2));			// Compute the length of the route
+		bf->deltaTotal = sqrt(pow(bf->delta[0], 2) + pow(bf->delta[1], 2));	// Compute the length of the route
 		serial_send_pair("delta", bf->deltaTotal);
 
 		if (bf->speed == 0){												// If speed is equal to zero, sets the default speed
 			bf->speed = DEFAULT_SPEED;
 		}
 
-		bf->steps = abs(bf->deltaTotal / bf->speed) * ISR_FREQUENCY;				// Compute the number of steps according to the route, speed and ISR
+		bf->steps = abs(bf->deltaTotal / bf->speed) * ISR_FREQUENCY;		// Compute the number of steps according to the route, speed and ISR
 		serial_send_pair("steps", bf->steps);
 
 		if (bf->steps == 0){												// Steps cannot be 0. If it is, sets it to 1

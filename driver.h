@@ -10,7 +10,19 @@
 #ifndef DRIVER_H
 #define DRIVER_H
 
+// This structure stores the state of the Driver
+struct driverState{
+	volatile double now[3];											// Stores the current position
+	volatile double previous[3];									// Stores the previous position
+
+	volatile byte moving;											// Knows if it's moving or not
+
+};
 void driver_init();
 void driver_interrupt_init();
 ISR(TIMER1_COMPA_vect);
+driverState * driver_get_ds();
+boolean driver_is_moving();
+volatile double * driver_get_position();
+
 #endif

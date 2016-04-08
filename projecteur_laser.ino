@@ -30,5 +30,8 @@ void setup(){
 void loop(){
 	serial_get_data();
 	planner_plan_move();
-	serial_send_position();
+
+	if (driver_is_moving()){
+		serial_send_position();
+	}
 }

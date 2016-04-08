@@ -17,7 +17,7 @@ struct moveBuffer {
 	int id;														// Stores the ID of this move, sent by the program
 
 	byte active;												// remember if the buffer is active, i.e. if it has been set or if it's empty
-	byte  compute;												// Rememeber if the planner has already calulated the deltas and incr
+	byte compute;												// Rememeber if the planner has already calulated the deltas and increments
 
 	int pos[3];													// The X position we must go to
 	int speed;													// Ditto speed. Applies to the curent movement. mm/s.
@@ -40,8 +40,8 @@ struct moveBuffer {
 // this structure stores the states of the buffers
 struct moveBufferPool {
 	struct moveBuffer *write;									// Stores the address of the write buffer, i.e. where to write incomming data
-	struct moveBuffer *run;										// Stores the address of the run buffer, i.e. which one is currently executing
 	struct moveBuffer *queue;									// Stores the addres of the queue buffer, i.e. the last one added to the queue
+	struct moveBuffer *run;										// Stores the address of the run buffer, i.e. which one is currently executing
 
 	byte available;												// How much buffers are available for write
 
@@ -52,6 +52,7 @@ void planner_init();
 void planner_init_buffer();
 byte planner_get_available();
 moveBuffer* planner_get_run_buffer();
+void planner_set_next_buffer(byte buffer);
 void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mode, byte set);
 void planner_free_buffer(moveBuffer * bf);
 void planner_plan_move();
