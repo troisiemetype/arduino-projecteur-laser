@@ -14,6 +14,7 @@
 #include <Arduino.h>
 #include "planner.h"
 #include "serialIO.h"
+#include "driver.h"
 #include "settings.h"
 
 byte _parser_state = 0;														// Stores the last operation the parser has done
@@ -176,4 +177,13 @@ void serial_send_message(String message){
 // This function is for debugging purpose: it prints "step" on Serial. Used to replace breakpoints.
 void serial_step(){
 	Serial.println("step");
+}
+
+// This function send the current position
+void serial_send_position(){
+	moveBuffer * bf = planner_get_run_buffer();
+//	serial_send_pair("pos X = ", bf->nowX);
+//	serial_send_pair("pos Y = ", bf->nowY);
+//	serial_send_pair("pos L = ", bf->nowL);
+
 }

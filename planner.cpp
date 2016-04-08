@@ -5,7 +5,6 @@
 // Once all is done, buffers are used by the driver program to control the galvos
 
 #include <Arduino.h>
-//#include <math.h>
 
 #include "planner.h"
 #include "serialIO.h"
@@ -51,6 +50,11 @@ byte planner_get_available(){
 	return mbp.available;
 }
 
+// This just gives a pointer to the run buffer
+moveBuffer* planner_get_run_buffer(){
+	return mbp.run;
+}
+
 // This sets up a buffer with the data received from Serial
 /* It first verifies for each parameter if it has been set or if we copy those of the previous buffer
  * then it coppies these parameters to the buffer
@@ -64,13 +68,13 @@ void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mo
 		id = bf->pv->id;
 	}
 	if (!(set & 16)){
-		posX = bf->pv->posX;
+		posX = bf->pv->pos[0];
 	}
 	if (!(set & 8)){
-		posY = bf->pv->posY;
+		posY = bf->pv->pos[1];
 	}
 	if (!(set & 4)){
-		posL = bf->pv->posL;
+		posL = bf->pv->pos[2];
 	}
 	if (!(set & 2)){
 		speed = bf->pv->speed;
@@ -81,9 +85,9 @@ void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mo
 
 	bf->active = 1;															// active = 1 tells that values have been load in the buffer
 	bf->id = id;															// Copies the values to the buffer
-	bf->posX = posX;
-	bf->posY = posY;
-	bf->posL = posL;
+	bf->pos[0] = posX;
+	bf->pos[1] = posY;
+	bf->pos[2] = posL;
 	bf->speed = speed;
 	bf->mode = mode;
 	bf->compute = 0;														// Compute = 0 says that the buffer needs to be planned
@@ -98,7 +102,7 @@ void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mo
 /* It does so by copying pv and nx pointers, do a memset (populates buffer with zeros) and copy back pv and nx pointers
  * It then increase the available counter
  */
-void planner_free_buffer(moveBuffer *bf){
+void planner_free_buffer(moveBuffer*bf){
 	moveBuffer *pv;
 	moveBuffer *nx;
 
@@ -125,29 +129,29 @@ void planner_plan_move(){
 	}
 
 	if (bf->mode == 1){														// Look at the type of move: O is fast (placement), 1 is calibrated
-		bf->deltaX = bf->posX - pv->posX;									// Compute the delta between previous and goal position
-		bf->deltaY = bf->posY - pv->posY;
-		bf->deltaL = bf->posL - pv->posL;
-		bf->delta = sqrt(pow(bf->deltaX, 2) + pow(bf->deltaY, 2));			// Compute the length of the route
-		serial_send_pair("delta", bf->delta);
+		for (int i=0; i<3; i++){											// Compute the delta between previous and goal position
+			bf->delta[i] = bf->pos[i] - pv->pos[i];
+		}
+		bf->deltaTotal = sqrt(pow(bf->delta[0], 2) + pow(bf->delta[1], 2));			// Compute the length of the route
+		serial_send_pair("delta", bf->deltaTotal);
 
 		if (bf->speed == 0){												// If speed is equal to zero, sets the default speed
 			bf->speed = DEFAULT_SPEED;
 		}
 
-		bf->steps = abs(bf->delta / bf->speed) * ISR_FREQUENCY;				// Compute the number of steps according to the route, speed and ISR
+		bf->steps = abs(bf->deltaTotal / bf->speed) * ISR_FREQUENCY;				// Compute the number of steps according to the route, speed and ISR
 		serial_send_pair("steps", bf->steps);
 
-		if (bf->steps == 0){												// Steps cannot be 0 If it is, sets it to 1
+		if (bf->steps == 0){												// Steps cannot be 0. If it is, sets it to 1
 			bf->steps = 1;
 		}
 
-		bf->incrX = (double)bf->deltaX / (double)bf->steps;					// Compute the increment for each axe
-		bf->incrY = (double)bf->deltaY / (double)bf->steps;
-		bf->incrL = (double)bf->deltaL / (double)bf->steps;
-		serial_send_pair("incrX",bf->incrX);
-		serial_send_pair("incrY",bf->incrY);
-		serial_send_pair("incrL",bf->incrL);
+		for (int i = 0; i<3; i++){											// Compute the increment for each axe
+			bf->incr[i] = (double)bf->delta[i] / (double)bf->steps;
+		}
+		serial_send_pair("incrX",bf->incr[0]);
+		serial_send_pair("incrY",bf->incr[1]);
+		serial_send_pair("incrL",bf->incr[2]);
 	}
 
 	bf->compute = 1;														// The buffer is marked as having been compute

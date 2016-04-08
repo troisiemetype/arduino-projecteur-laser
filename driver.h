@@ -12,4 +12,5 @@
 
 void driver_init();
 void driver_interrupt_init();
+ISR(TIMER1_COMPA_vect);
 #endif

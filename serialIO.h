@@ -27,5 +27,6 @@ byte _serial_parser();
 void serial_send_pair(String text, double value);
 void serial_send_message(String message);
 void serial_step();
+void serial_send_position();
 
 #endif

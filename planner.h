@@ -7,7 +7,7 @@
 #ifndef PLANNER_H
 #define PLANNER_H
 
-#define BUFFER_POOL_SIZE 16
+#define BUFFER_POOL_SIZE 12
 
 // this structure stores each point sent by computer to the program
 struct moveBuffer {
@@ -19,29 +19,22 @@ struct moveBuffer {
 	byte active;												// remember if the buffer is active, i.e. if it has been set or if it's empty
 	byte  compute;												// Rememeber if the planner has already calulated the deltas and incr
 
-	int posX;													// The X position we must go to
-	int posY;													// Ditto Y
-	int posL;													// Ditto Laser (compute as if it were a position)
+	int pos[3];													// The X position we must go to
 	int speed;													// Ditto speed. Applies to the curent movement. mm/s.
 	byte mode;													// Stores the current mode: 0 = fast movement, 1 = calibrated movement
 
-	int nowX;													// Stores the instant position
-	int nowY;
-	int nowL;
+	double now[3];												// Stores the instant position
 
 	double posA;												// Stores the position it must go
 	double posB;
 
-	double delta;												// The delta between the start and the final position
-	int deltaX;													
-	int deltaY;
-	int deltaL;
+	double deltaTotal;												// The delta between the start and the final position
+	int delta[3];													
 
 	long steps;													// Stores the number ot steps for this move (== (delta / speed) * ISR_FREQUENCY)
+	long nowSteps;
 
-	double incrX;												// The increment it must goes forward on each step
-	double incrY;
-	double incrL;
+	double incr[3];												// The increment it must goes forward on each step
 };
 
 // this structure stores the states of the buffers
@@ -58,8 +51,9 @@ struct moveBufferPool {
 void planner_init();
 void planner_init_buffer();
 byte planner_get_available();
+moveBuffer* planner_get_run_buffer();
 void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mode, byte set);
-void planner_free_buffer();
+void planner_free_buffer(moveBuffer * bf);
 void planner_plan_move();
 
 
