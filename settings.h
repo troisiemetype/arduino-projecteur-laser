@@ -9,7 +9,7 @@
 
 #define SERIAL_CONFIG			SERIAL_8N1				// See http://www.arduino.cc/en/Reference/Serial for possible values
 
-#define X_I2C_ADDR				0x62					// These addreses can changed accroding to the hardware DAC you use
+#define X_I2C_ADDR				0x62					// These addresses can changed accroding to the hardware DAC you use
 #define Y_I2C_ADDR				0x63
 #define L_I2C_ADDR				0x64
 
@@ -21,6 +21,8 @@
 
 #define CLOCK_SPEED				16000000				// Frequency of the board
 #define ISR_FREQUENCY			200						// Frequency of the interrupt
+
+#define WATCHDOG_TIMER			100						// Number of ISR interrupts whitout move before to stop the laser
 
 #define MOVE_CARTESIAN			0						// Used to test the move type in the driver ISR
 #define MOVE_POLAR				1

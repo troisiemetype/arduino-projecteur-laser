@@ -70,8 +70,14 @@ ISR(TIMER1_COMPA_vect){
 	// Verifies that there is movement
 	if ((ds.now[0] == ds.previous[0]) && (ds.now[1] == ds.previous[1]) && (ds.now[2] == ds.previous[2])){
 		ds.moving = 0;												// records the current state
+		ds.watchdog++;												// The watchdog looks if it moves. If no, it increments
 	} else {
 		ds.moving = 1;
+		ds.watchdog = 0;											// It's set back to 0 each time there's a move
+
+	}
+	if (ds.watchdog > WATCHDOG_TIMER){								// If it overflows the limit value, the laser is cut
+		ds.now[2] = 0;												// It's a security feature for it doesn't burn anything by staying immobile
 	}
 
 	for (int i=0; i<3; i++){										// records the last position before to update it
