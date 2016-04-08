@@ -163,7 +163,7 @@ void planner_plan_move(){
 		return;																// If Compute == 0, the buffer is empty
 	}
 
-	if (bf->mode == 1){														// Look at the type of move: O is fast (placement), 1 is calibrated
+	if (bf->mode != 0){														// Look at the type of move: O is fast (placement), else is calibrated
 		for (int i=0; i<3; i++){											// Compute the delta between previous and goal position
 			bf->delta[i] = bf->pos[i] - bf->now[i];
 		}

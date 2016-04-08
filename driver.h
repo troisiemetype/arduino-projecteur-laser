@@ -15,6 +15,8 @@ struct driverState{
 	volatile double now[3];											// Stores the current position
 	volatile double previous[3];									// Stores the previous position
 
+	int zDistance;													// Stores the distance from projector to wall
+
 	volatile byte moving;											// Knows if it's moving or not
 
 };

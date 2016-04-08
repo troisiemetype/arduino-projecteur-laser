@@ -21,7 +21,7 @@ struct moveBuffer {
 
 	int pos[3];													// The X position we must go to
 	int speed;													// Ditto speed. Applies to the curent movement. mm/s.
-	byte mode;													// Stores the current mode: 0 = fast movement, 1 = calibrated movement
+	byte mode;													// Stores the current mode: 0 = fast movement, else = calibrated movement
 
 	double now[3];												// Stores the instant position
 

@@ -20,6 +20,11 @@
 #define DEFAULT_SPEED			100						// Default speed of the projecteur
 
 #define CLOCK_SPEED				16000000				// Frequency of the board
-#define ISR_FREQUENCY			100						// Frequency of the interrupt
+#define ISR_FREQUENCY			200						// Frequency of the interrupt
+
+#define MOVE_CARTESIAN			0						// Used to test the move type in the driver ISR
+#define MOVE_POLAR				1
+
+#define Z_DISTANCE				1000					// Distance from projector to wall, in mm
 
 #endif

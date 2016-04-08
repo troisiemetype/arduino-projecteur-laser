@@ -15,6 +15,7 @@
  */
 
 #include <Arduino.h>
+#include <math.h>
 
 #include "driver.h"
 #include "planner.h"
@@ -26,6 +27,7 @@ driverState ds;
 
 void driver_init(){
 	memset(&ds, 0, sizeof(ds));										// Init the driver state with 0
+	ds.zDistance = Z_DISTANCE;
 	driver_interrupt_init();
 	serial_send_message("driver initialisé");
 
@@ -84,6 +86,10 @@ ISR(TIMER1_COMPA_vect){
 	for (int i=0; i<3; i++){										// compute each of the axis (X, Y and laser)
 		bf->now[i] += (double)bf->incr[i];							// compute the new position with the older one and the increment
 		ds.now[i] = bf->now[i];										// Records the new position
+	}
+	if (MOVE_POLAR){												// If we need polar position (normal use for a projector)
+		bf->posA = atan(ds.now[0] / ds.zDistance);					// Compute the output angle, given position and distance
+		bf->posB = atan(ds.now[1] / ds.zDistance);					// Gives a value between -pi/2 and pi/2
 	}
 
 	if (bf->nowSteps >= bf->steps-1){								// If the number of steps of this move has been reach,
