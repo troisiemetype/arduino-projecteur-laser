@@ -17,12 +17,12 @@
 #include "driver.h"
 #include "settings.h"
 
-byte _parser_state = 0;														// Stores the last operation the parser has done
-byte _parser_data_received = 0;												// Stores the values that have been received
-																			// Each set bit is a received value, e.g. 1010 is X & L set, Y & mode not
+serialState ss;
 
 void serial_init(){
-	Serial.begin(115200, SERIAL_CONFIG);
+	memset(&ss, 0, sizeof(ss));												// Init the serial state struct
+//	ss.xon_state = 1;														//
+	Serial.begin(BAUDRATE, SERIAL_CONFIG);
 	Serial.setTimeout(1);
 	serial_send_message("liaison série initialisée");
 }
@@ -31,12 +31,26 @@ void serial_init(){
  * 
  */
 void serial_get_data(){
+	serial_xon_xoff();
 	byte inByte = Serial.read();
-	if (planner_get_available() < 4){
+	if (planner_get_available() < 2){
 		serial_send_message("no buffer available");
 		return;
 	}
 
+	switch (ss.parser_state){
+		case PARSING_OK:
+		case PARSING_START_JSON:
+		case PARSING_END_JSON:
+		case PARSING_VAR:
+		case PARSING_VALUE:
+		case PARSING_PAIR_OK:
+		case PARSING_VAR_ERROR:
+		case PARSING_VALUE_ERROR:
+		case PARSING_PAIR_ERROR:
+		case PARSING_ERROR:
+	}
+	/*
 	if (inByte == '{'){
 		delay(10);															// waits a bit for the following data to come
 		_serial_parser();													// calls the parser
@@ -53,6 +67,7 @@ void serial_get_data(){
  	} else if (inByte == '%'){
  		// empty for now
  	}
+ 	*/
 
 }
 
@@ -79,7 +94,7 @@ byte _serial_parser(){
 	byte inByte = 0;														// The byte read
 	int inValue = 0;														// The value read
 
-	_parser_data_received = 0;												// Keeps track of which data have been received
+	ss.parser_data_received = 0;												// Keeps track of which data have been received
 
 	int id = 0;																// Stores the values received
 	int posX = 0;
@@ -88,63 +103,63 @@ byte _serial_parser(){
 	int speed = 0;
 	byte mode = 0;
 
-	while (Serial.available()){												// If data available
+	while (serial_xon_xoff()){												// If data available
 		inByte = Serial.read();
 
 
 		if (inByte == '{'){													// Look for an openning brace for the beginning of the json string
-			_parser_state = PARSING_START_JSON;
+			ss.parser_state = PARSING_START_JSON;
 			continue;
 		} else if (inByte == '"'){											// Look for a quote mark (start of a var/value pair)...
-			_parser_state = PARSING_VAR;									// Sets the parser status
+			ss.parser_state = PARSING_VAR;									// Sets the parser status
 			inVar = Serial.readStringUntil('"');							// records the name of the var sent
 		} else if (inByte == ','){													// If it's a comma, loop again to a new var/value pair
-			_parser_state = PARSING_START_JSON;
+			ss.parser_state = PARSING_START_JSON;
 			continue;
 		} else if( inByte == '}'){											// Else if it's a closing brace, end of the JSON string
-			_parser_state = PARSING_END_JSON;								// Update status
+			ss.parser_state = PARSING_END_JSON;								// Update status
 			break;															// And quit while loop to store the received data
 		} else {
 			continue;
 		}
 
 		if (!Serial.read() == ':'){											// Look for a colon after the var, else stop the loop
-			_parser_state = PARSING_PAIR_ERROR;
-			return _parser_state;
+			ss.parser_state = PARSING_PAIR_ERROR;
+			return ss.parser_state;
 		}
 
 		if ((Serial.peek() < '0' || Serial.peek() > '9')){					// verifies that the following byte is a number
 			if (Serial.peek() !='-'){										// It also can be a minux sign for negative number
-				_parser_state = PARSING_PAIR_ERROR;							// sets statuts, then continue to next value
-				return _parser_state;
+				ss.parser_state = PARSING_PAIR_ERROR;							// sets statuts, then continue to next value
+				return ss.parser_state;
 			}
 		}
 
-		_parser_state = PARSING_VALUE;										// Once the var has been recorded, one must find its value. Sets status
+		ss.parser_state = PARSING_VALUE;										// Once the var has been recorded, one must find its value. Sets status
 		inValue = Serial.parseInt();										// Recording the value
 
 		if (inVar == "ID"){													// Sets the right value to the right var
-			_parser_data_received |= 32;
+			ss.parser_data_received |= 32;
 			id = inValue;
 			serial_send_pair("ID", id);
 		} else if (inVar == "X"){
-			_parser_data_received |= 16;
+			ss.parser_data_received |= 16;
 			posX = inValue;
 			serial_send_pair("X", posX);
 		} else if (inVar == "Y"){
-			_parser_data_received |= 8;
+			ss.parser_data_received |= 8;
 			posY = inValue;
 			serial_send_pair("Y", posY);
 		} else if (inVar == "L"){
-			_parser_data_received |= 4;
+			ss.parser_data_received |= 4;
 			posL = inValue;
 			serial_send_pair("L", posL);
 		} else if (inVar == "speed"){
-			_parser_data_received |= 2;
+			ss.parser_data_received |= 2;
 			speed = inValue;
 			serial_send_pair("speed", speed);
 		} else if (inVar == "mode"){
-			_parser_data_received |= 1;
+			ss.parser_data_received |= 1;
 			mode = inValue;
 			serial_send_pair("mode", mode);
 		} else {
@@ -152,11 +167,26 @@ byte _serial_parser(){
 		}
 	}
 
-	if (_parser_data_received != 0){
+	if (ss.parser_data_received != 0){
 		serial_send_message("populates buffer");
-		planner_set_buffer(id, posX, posY, posL, speed, mode, _parser_data_received);	// Populates the buffer with the values received
+		planner_set_buffer(id, posX, posY, posL, speed, mode, ss.parser_data_received);	// Populates the buffer with the values received
 	}
-	return _parser_state = PARSING_OK;
+	return ss.parser_state = PARSING_OK;
+}
+
+byte serial_xon_xoff(){
+	ss.available = Serial.available();
+	if (ss.available > 42 && ss.xon_state == XON_SET){
+		ss.xon_state = XOFF_SET;
+		Serial.write(XOFF_CHAR);
+		serial_send_message("XOFF");
+	} else if (ss.available < 32 && ss.xon_state == XOFF_SET){
+		ss.xon_state = XON_SET;
+		Serial.write(XON_CHAR);
+		serial_send_message("XON");
+	}
+
+	return ss.available;
 }
 
 // This function write a pair of data to Serial, formated in json

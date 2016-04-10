@@ -8,6 +8,9 @@
 #ifndef SERIALIO_H
 #define SERIALIO_H
 
+#define XON_SET 			1
+#define XOFF_SET			0
+
 //define parser states / error
 #define PARSING_OK			0
 #define PARSING_START_JSON	1
@@ -20,10 +23,19 @@
 #define PARSING_PAIR_ERROR	8
 #define PARSING_ERROR		9
 
+struct serialState{
+	byte parser_state;
+	byte parser_data_received;
+
+	byte available;
+
+	boolean xon_state;
+};
 
 void serial_init();
 void serial_get_data();
 byte _serial_parser();
+byte serial_xon_xoff();
 void serial_send_pair(String text, double value);
 void serial_send_message(String message);
 void serial_step();

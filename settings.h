@@ -7,8 +7,13 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+// Serial settings
+#define BAUDRATE				57600					// Defines the baudrate used for the serial
 #define SERIAL_CONFIG			SERIAL_8N1				// See http://www.arduino.cc/en/Reference/Serial for possible values
+#define XON_CHAR				17						// XON char. That's 0x11, or ctrl+Q
+#define XOFF_CHAR				19						// XOFF char. That's 0x13, or ctrl+S
 
+// I2C settings
 #define X_I2C_ADDR				0x62					// These addresses can changed accroding to the hardware DAC you use
 #define Y_I2C_ADDR				0x63
 #define L_I2C_ADDR				0x64
