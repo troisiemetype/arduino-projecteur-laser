@@ -28,11 +28,12 @@ struct moveBuffer {
 	double posA;												// Stores the position it must go
 	double posB;
 
-	double deltaTotal;												// The delta between the start and the final position
+	double deltaTotal;											// The delta between the start and the final position
 	int delta[3];													
 
 	long steps;													// Stores the number ot steps for this move (== (delta / speed) * ISR_FREQUENCY)
 	long nowSteps;
+	float percent;												// Stores the percent of the move that has been done
 
 	double incr[3];												// The increment it must goes forward on each step
 };

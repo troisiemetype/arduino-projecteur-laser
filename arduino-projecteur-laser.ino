@@ -29,9 +29,6 @@ void setup(){
 
 void loop(){
 	serial_get_data();
+	serial_write_data();
 	planner_plan_move();
-
-	if (driver_is_moving()){
-		serial_send_position();
-	}
 }

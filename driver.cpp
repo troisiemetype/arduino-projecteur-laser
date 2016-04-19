@@ -70,7 +70,7 @@ ISR(TIMER1_COMPA_vect){
 	// Verifies that there is movement
 	if ((ds.now[0] == ds.previous[0]) && (ds.now[1] == ds.previous[1]) && (ds.now[2] == ds.previous[2])){
 		ds.moving = 0;												// records the current state
-		ds.watchdog++;												// The watchdog looks if it moves. If no, it increments
+		ds.watchdog++;												// The watchdog increments if there is no move
 	} else {
 		ds.moving = 1;
 		ds.watchdog = 0;											// It's set back to 0 each time there's a move
@@ -93,10 +93,14 @@ ISR(TIMER1_COMPA_vect){
 		bf->now[i] += (double)bf->incr[i];							// compute the new position with the older one and the increment
 		ds.now[i] = bf->now[i];										// Records the new position
 	}
+	/* Maybe to suppress, as the cartesian to polar conversion is done by the python program
 	if (MOVE_POLAR){												// If we need polar position (normal use for a projector)
 		bf->posA = atan(ds.now[0] / ds.zDistance);					// Compute the output angle, given position and distance
 		bf->posB = atan(ds.now[1] / ds.zDistance);					// Gives a value between -pi/2 and pi/2
 	}
+	*/
+
+	bf->percent = (float(bf->nowSteps) / bf->steps);				// Calculates the percent of current move
 
 	if (bf->nowSteps >= bf->steps-1){								// If the number of steps of this move has been reach,
 
@@ -108,6 +112,8 @@ ISR(TIMER1_COMPA_vect){
 	} else {
 		bf->nowSteps++;
 	}
+
+	ds.move_flag = 1;												// Sets the move_flag to 1, so serial know if it has move since like write
 
 
 }

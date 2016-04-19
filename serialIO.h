@@ -30,7 +30,7 @@ struct serialState{
 
 	byte available;
 
-	byte id;
+	long id;
 	int posX;
 	int posY;
 	int posL;
@@ -49,6 +49,7 @@ void serial_parse_json_value(int inByte);
 void serial_parse_json_pair(int inByte);
 void serial_record_values();
 byte serial_xon_xoff();
+void serial_write_data();
 void serial_send_pair(String text, double value);
 void serial_send_message(String message);
 void serial_step();

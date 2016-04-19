@@ -21,6 +21,8 @@ struct driverState{
 
 	volatile byte moving;											// Knows if it's moving or not
 
+	volatile boolean move_flag;												//Sets each time a move is compute, so serial knows if this move has been sent
+
 };
 void driver_init();
 void driver_interrupt_init();
