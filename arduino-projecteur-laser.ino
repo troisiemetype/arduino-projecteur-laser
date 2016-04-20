@@ -16,6 +16,9 @@
 #include "planner.h"
 #include "driver.h"
 
+long temps;
+long temps_prec;
+
 void setup(){
 
 	//calling the init functions of all program parts
@@ -31,4 +34,9 @@ void loop(){
 	serial_get_data();
 	serial_write_data();
 	planner_plan_move();
+/*	temps = micros();
+	serial_send_pair("boucle", temps - temps_prec);
+	temps_prec = temps;
+	serial_send_pair("TCNT1", TCNT1);
+	*/
 }

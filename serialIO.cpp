@@ -247,6 +247,9 @@ void serial_write_data(){
 		return;
 	}
 	moveBuffer *bf = planner_get_run_buffer();
+	if (bf->id == 0){
+		return;
+	}
 	Serial.print("{\"ID\":");
 	Serial.print(bf->id);
 	Serial.print(",\"progress\":");
