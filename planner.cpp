@@ -168,14 +168,14 @@ void planner_plan_move(){
 			bf->delta[i] = bf->pos[i] - bf->now[i];
 		}
 		bf->deltaTotal = sqrt(pow(bf->delta[0], 2) + pow(bf->delta[1], 2));	// Compute the length of the route
-		serial_send_pair("delta", bf->deltaTotal);
+//		serial_send_pair("delta", bf->deltaTotal);
 
 		if (bf->speed == 0){												// If speed is equal to zero, sets the default speed
 			bf->speed = DEFAULT_SPEED;
 		}
 
 		bf->steps = abs(bf->deltaTotal / bf->speed) * ISR_FREQUENCY;		// Compute the number of steps according to the route, speed and ISR
-		serial_send_pair("steps", bf->steps);
+//		serial_send_pair("steps", bf->steps);
 
 		if (bf->steps == 0){												// Steps cannot be 0. If it is, sets it to 1
 			bf->steps = 1;
@@ -184,9 +184,9 @@ void planner_plan_move(){
 		for (int i = 0; i<3; i++){											// Compute the increment for each axe
 			bf->incr[i] = (double)bf->delta[i] / (double)bf->steps;
 		}
-		serial_send_pair("incrX",bf->incr[0]);
-		serial_send_pair("incrY",bf->incr[1]);
-		serial_send_pair("incrL",bf->incr[2]);
+//		serial_send_pair("incrX",bf->incr[0]);
+//		serial_send_pair("incrY",bf->incr[1]);
+//		serial_send_pair("incrL",bf->incr[2]);
 	}
 
 	bf->compute = 1;														// The buffer is marked as having been compute

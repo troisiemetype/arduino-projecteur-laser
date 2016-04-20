@@ -8,7 +8,7 @@
 #define SETTINGS_H
 
 // Serial settings
-#define BAUDRATE				57600					// Defines the baudrate used for the serial
+#define BAUDRATE				115200					// Defines the baudrate used for the serial
 #define SERIAL_CONFIG			SERIAL_8N1				// See http://www.arduino.cc/en/Reference/Serial for possible values
 #define XON_CHAR				17						// XON char. 0x11; ctrl+Q
 #define XOFF_CHAR				19						// XOFF char. 0x13; ctrl+S

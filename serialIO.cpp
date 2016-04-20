@@ -23,25 +23,30 @@ void serial_init(){
 	memset(&ss, 0, sizeof(ss));												// Init the serial state struct
 	ss.xon_state = 1;														// Enables XON
 	Serial.begin(BAUDRATE, SERIAL_CONFIG);
-	Serial.setTimeout(1);
+	Serial.setTimeout(0.1);
 	serial_send_message("liaison série initialisée");
 }
 
-/* this function just look at the beggining of a json string
+/* this function looks at the next char in the serial buffer, the ncalls the right function.
  * 
  */
 void serial_get_data(){
-	serial_xon_xoff();														// Verifies the buffer size
+//	serial_xon_xoff();														// Verifies the buffer size
+
+	if (planner_get_available() < 2){										// Manage the planner buffer queue.
+//		serial_send_message("no buffer available");
+		return;
+	}
+
 	int inByte = Serial.read();												// Read the next byte in the serial buffer
+	if (inByte == -1){
+		return;
+	}
+
 
 
 	if ((inByte == NL_CHAR) || (inByte == CR_CHAR)){						// If end of line, then stop
-			ss.parser_state = PARSING_IDLE;
-	}
-
-	if (planner_get_available() < 2){										// Manage the planner buffer queue.
-		serial_send_message("no buffer available");
-		return;
+		ss.parser_state = PARSING_IDLE;
 	}
 
 	switch (ss.parser_state){												// Switch between the diferent possible states
@@ -108,6 +113,7 @@ void serial_parse_json_var(int inByte){
 // This function parse the value of the pair
 // Once done, it records this value temporarly in the serialstate singleton. If there is no problem, it will later be sent to the planner
 void serial_parse_json_value(int inByte){
+	delay(1);
 //	serial_send_message(ss.inVar);
 //	serial_send_message("parse value");
 	if (inByte ==':'){
@@ -184,6 +190,7 @@ void serial_record_values(){
 	ss.parser_data_received = 0;
 	ss.inVar="";
 	ss.inValue=0;
+	serial_send_go();
 
 }
 
@@ -222,6 +229,16 @@ byte serial_xon_xoff(){
 
 	return ss.available;
 }
+
+//This sends the stop signal to disable data sending
+void serial_send_stop(){
+	serial_send_pair("send", 0);
+}
+//This sends the go signal when Serial is able to receive
+void serial_send_go(){
+	serial_send_pair("send", 1);
+}
+
 
 // This function is called on each main loop, to send back datas to the python program
 void serial_write_data(){
