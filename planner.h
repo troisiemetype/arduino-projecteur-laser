@@ -7,7 +7,7 @@
 #ifndef PLANNER_H
 #define PLANNER_H
 
-#define BUFFER_POOL_SIZE 10
+#define BUFFER_POOL_SIZE 8
 
 // this structure stores each point sent by computer to the program
 struct moveBuffer {

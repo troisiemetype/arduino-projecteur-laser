@@ -242,14 +242,17 @@ void serial_send_go(){
 
 // This function is called on each main loop, to send back datas to the python program
 void serial_write_data(){
-	driverState * ds = driver_get_ds();	
-	if (ds->move_flag == 0){
+	driverState * ds = driver_get_ds();											// Get the driver singleton.
+	if (ds->move_flag == 0){													// If doesn't move, nothing to send.
 		return;
 	}
-	moveBuffer *bf = planner_get_run_buffer();
-	if (bf->id == 0){
+	moveBuffer *bf = planner_get_run_buffer();									// Get the current move buffer.
+	if (bf->id == 0){															// If ID==0, then skip the following.
 		return;
-	}
+	}/*
+	if ((bf->id%100) != 0){														// only sends the coord every 100 px.
+		return;
+	}*/
 	Serial.print("{\"ID\":");
 	Serial.print(bf->id);
 	Serial.print(",\"progress\":");
