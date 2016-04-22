@@ -18,9 +18,17 @@
 #define PARSING_JSON_VALUE			3
 #define PARSING_JSON_PAIR			4
 #define PARSING_JSON_END			5
-#define PARSING_JSON_ERROR			6
-#define PARSING_INFO_START			7
-#define PARSING_INFO_VAR			8
+#define PARSING_ERROR_INPUT			6
+#define PARSING_JSON_ERROR_START	7
+#define PARSING_JSON_ERROR_VAR		8
+#define PARSING_JSON_ERROR_VALUE	9
+#define PARSING_JSON_ERROR_PAIR		10
+#define PARSING_JSON_ERROR			11
+
+#define PARSING_CFG_START			12
+#define PARSING_CFG_VAR				13
+#define PARSING_CFG_VALUE			14
+#define PARSING_CFG_END				15
 
 struct serialState{
 	byte parser_state;
@@ -48,9 +56,10 @@ void serial_parse_json_var(int inByte);
 void serial_parse_json_value(int inByte);
 void serial_parse_json_pair(int inByte);
 void serial_record_values();
+void serial_parse_cfg();
 byte serial_xon_xoff();
-void serial_send_stop();
 void serial_send_go();
+void serial_send_again();
 void serial_write_data();
 void serial_send_pair(String text, double value);
 void serial_send_message(String message);

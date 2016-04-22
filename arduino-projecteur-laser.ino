@@ -32,7 +32,7 @@ void setup(){
 
 void loop(){
 	serial_get_data();
-	serial_write_data();
+//	serial_write_data();
 	planner_plan_move();
 /*	temps = micros();
 	serial_send_pair("boucle", temps - temps_prec);

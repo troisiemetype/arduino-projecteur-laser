@@ -68,7 +68,7 @@ ISR(TIMER1_COMPA_vect){
 	moveBuffer *bf = planner_get_run_buffer();						// Get a pointer to the run buffer
 
 	// Verifies that there is movement
-	if ((ds.now[0] == ds.previous[0]) && (ds.now[1] == ds.previous[1]) && (ds.now[2] == ds.previous[2])){
+	if ((ds.now[0] == ds.previous[0]) && (ds.now[1] == ds.previous[1])){
 		ds.moving = 0;												// records the current state
 		ds.watchdog++;												// The watchdog increments if there is no move
 	} else {
@@ -89,33 +89,28 @@ ISR(TIMER1_COMPA_vect){
 		return;
 	}
 
+	/*
+	if (bf->id == ds.percent_incr){									// Set a flag for sending percent each time a new percent has been insolate
+		ds.percent_incr += ds.percent;
+		ds.percent_flag == 1;
+	}
+	*/
+
 	for (int i=0; i<3; i++){										// compute each of the axis (X, Y and laser)
 		bf->now[i] += (double)bf->incr[i];							// compute the new position with the older one and the increment
 		ds.now[i] = bf->now[i];										// Records the new position
 	}
-	/* Maybe to suppress, as the cartesian to polar conversion is done by the python program
-	if (MOVE_POLAR){												// If we need polar position (normal use for a projector)
-		bf->posA = atan(ds.now[0] / ds.zDistance);					// Compute the output angle, given position and distance
-		bf->posB = atan(ds.now[1] / ds.zDistance);					// Gives a value between -pi/2 and pi/2
-	}
-	*/
-
-	bf->percent = (float(bf->nowSteps) / bf->steps);				// Calculates the percent of current move
 
 	if (bf->nowSteps >= bf->steps-1){								// If the number of steps of this move has been reach,
 
 		for (int i=0; i<3; i++){									// Copy the goal position to the driverState
-			ds.now[i] = bf->pos[i];									// Otherwise the approx coordinate could lead to drift
+			ds.now[i] = bf->pos[i];									// Otherwise the coordinate approx could lead to drift
 		}
 		planner_set_next_buffer(2);									// Set the next run buffer
 		planner_free_buffer(bf);									// Frees the buffer
 	} else {
 		bf->nowSteps++;
 	}
-
-	ds.move_flag = 1;												// Sets the move_flag to 1, so serial know if it has move since like write
-
-
 }
 
 driverState * driver_get_ds(){
@@ -126,6 +121,13 @@ boolean driver_is_moving(){
 	return ds.moving;
 }
 
+/*
+void driver_set_size(long size){
+	ds.size = size;
+	ds.percent_incr = size/100;
+	ds.percent = ds.percent_incr;
+}
+*/
 volatile double * driver_get_position(){
 	return ds.now;
 }

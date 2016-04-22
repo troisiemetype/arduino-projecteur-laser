@@ -18,12 +18,13 @@
 #include "settings.h"
 
 serialState ss;
+long baudrate = BAUDRATE;
 
 void serial_init(){
 	memset(&ss, 0, sizeof(ss));												// Init the serial state struct
 	ss.xon_state = 1;														// Enables XON
-	Serial.begin(BAUDRATE, SERIAL_CONFIG);
-	Serial.setTimeout(0.1);
+	Serial.begin(baudrate, SERIAL_CONFIG);
+	Serial.setTimeout(0.01);
 	serial_send_message("liaison série initialisée");
 }
 
@@ -42,11 +43,17 @@ void serial_get_data(){
 	if (inByte == -1){
 		return;
 	}
+//	serial_send_pair("char", inByte);
 
-
-
-	if ((inByte == NL_CHAR) || (inByte == CR_CHAR)){						// If end of line, then stop
-		ss.parser_state = PARSING_IDLE;
+	if ((inByte == NL_CHAR) || (inByte == CR_CHAR)){						// If end of line, then parser wait for a string start
+/*		if ((ss.parser_state != PARSING_JSON_END) &&
+		(ss.parser_state != PARSING_CFG_END)){								// If the last string was not parsed till the end
+//			serial_send_message("Erreur fin de ligne");
+			serial_send_pair("erreur",ss.parser_state);
+			serial_send_again();
+		}
+*/		ss.parser_state = PARSING_IDLE;
+		return;
 	}
 
 	switch (ss.parser_state){												// Switch between the diferent possible states
@@ -68,9 +75,15 @@ void serial_get_data(){
 		case PARSING_JSON_END:												// End of the json string, send values to planner
 			serial_record_values();
 			break;
-		case PARSING_INFO_START:											// Befinning a info string
+		case PARSING_CFG_START:
+			break;
+		case PARSING_CFG_VAR:
 			break;
 		default:
+//			serial_send_again();
+			serial_send_pair("erreur",ss.parser_state);
+			ss.parser_state = PARSING_IDLE;
+			serial_send_again();
 			break;
 	}
 
@@ -83,8 +96,12 @@ void serial_parse_input(int inByte){
 			ss.parser_state++;
 			break;
 		case char('$'):
-			ss.parser_state = PARSING_INFO_START;
+			ss.parser_state = PARSING_CFG_START;
+			serial_parse_cfg();
+			break;
 		default:
+//			serial_send_message("Erreur parse input");
+			ss.parser_state = PARSING_ERROR_INPUT;
 			break;
 	}
 
@@ -97,6 +114,9 @@ void serial_parse_json_start(int inByte){
 	ss.inValue=0;
 	if (inByte == '"'){
 		ss.parser_state++;
+	} else {
+		ss.parser_state = PARSING_JSON_ERROR_START;
+//		serial_send_message("Erreur parse json start");
 	}
 }
 
@@ -119,10 +139,12 @@ void serial_parse_json_value(int inByte){
 	if (inByte ==':'){
 		if ((Serial.peek() < '0' || Serial.peek() > '9')){					// verifies that the following byte is a number
 			if (Serial.peek() !='-'){										// It also can be a minux sign for negative number
-				ss.parser_state = PARSING_JSON_ERROR;						// sets statuts, then continue to next value
+				ss.parser_state = PARSING_JSON_ERROR_VALUE;						// sets statuts, then continue to next value
+//				serial_send_message("Erreur parse json start");
 				return;
 			}
 		}
+
 		ss.parser_state++;
 		ss.inValue = Serial.parseInt();
 
@@ -176,6 +198,8 @@ void serial_parse_json_pair(int inByte){
 			serial_record_values();
 			break;
 		default:
+			ss.parser_state = PARSING_JSON_ERROR_PAIR;
+//			serial_send_message("Erreur json pair");
 			break;
 	}
 
@@ -183,6 +207,7 @@ void serial_parse_json_pair(int inByte){
 
 // This function sends the json string received to the planner buffer
 void serial_record_values(){
+	serial_send_go();
 	if (ss.parser_data_received != 0){
 //		serial_send_message("populates buffer");
 		planner_set_buffer(ss.id, ss.posX, ss.posY, ss.posL, ss.speed, ss.mode, ss.parser_data_received);	// Populates the buffer with the values received
@@ -190,8 +215,23 @@ void serial_record_values(){
 	ss.parser_data_received = 0;
 	ss.inVar="";
 	ss.inValue=0;
-	serial_send_go();
+}
 
+void serial_parse_cfg(){
+	delay(1);
+	String cfg_item = Serial.readStringUntil(':');
+	long cfg_value = Serial.parseInt();
+	serial_send_pair(cfg_item, cfg_value);
+	if(cfg_item == "baudrate"){
+		baudrate = cfg_value;
+		serial_send_message("baudrate updated");
+		Serial.end();
+		serial_init();
+	} else if (cfg_item = "size"){
+		driver_set_size(cfg_value);
+		serial_send_message("size updated");
+	}
+	ss.parser_state = PARSING_CFG_END;
 }
 
 /* this function parse the json string it receives
@@ -215,6 +255,7 @@ void serial_record_values(){
 
 // This function looks at how the serial buffer is full. It sends the xon/xoff chars according to that.
 // It's called by the serial_get_data function, that is itself called by the main loop.
+ /*
 byte serial_xon_xoff(){
 	ss.available = Serial.available();											// Look at how much bytes are in the buffer
 	if (ss.available > 40 && ss.xon_state == XON_SET){							// If more then a given amount, send XOFF (if not already sent)
@@ -229,37 +270,33 @@ byte serial_xon_xoff(){
 
 	return ss.available;
 }
+*/
 
-//This sends the stop signal to disable data sending
-void serial_send_stop(){
-	serial_send_pair("send", 0);
-}
 //This sends the go signal when Serial is able to receive
 void serial_send_go(){
 	serial_send_pair("send", 1);
+}
+
+//This sends the again signal in case of lost data
+void serial_send_again(){
+	serial_send_pair("send", 2);
 }
 
 
 // This function is called on each main loop, to send back datas to the python program
 void serial_write_data(){
 	driverState * ds = driver_get_ds();											// Get the driver singleton.
-	if (ds->move_flag == 0){													// If doesn't move, nothing to send.
+	if (ds->percent_flag == 0){
 		return;
 	}
 	moveBuffer *bf = planner_get_run_buffer();									// Get the current move buffer.
-	if (bf->id == 0){															// If ID==0, then skip the following.
-		return;
-	}/*
-	if ((bf->id%100) != 0){														// only sends the coord every 100 px.
-		return;
-	}*/
+
 	Serial.print("{\"ID\":");
 	Serial.print(bf->id);
-	Serial.print(",\"progress\":");
-	Serial.print(bf->percent);
 	Serial.print("}");
 	Serial.println();
-	ds->move_flag = 0;
+
+	ds->percent_flag = 0;
 }
 
 // This function write a pair of data to Serial, formated in json

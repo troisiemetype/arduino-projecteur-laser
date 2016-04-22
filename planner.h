@@ -19,21 +19,17 @@ struct moveBuffer {
 	byte active;												// remember if the buffer is active, i.e. if it has been set or if it's empty
 	byte compute;												// Rememeber if the planner has already calulated the deltas and increments
 
-	int pos[3];													// The X position we must go to
+	int pos[3];													// The position we must go to
 	int speed;													// Ditto speed. Applies to the curent movement. mm/s.
 	byte mode;													// Stores the current mode: 0 = fast movement, else = calibrated movement
 
 	double now[3];												// Stores the instant position
-
-	double posA;												// Stores the position it must go
-	double posB;
 
 	double deltaTotal;											// The delta between the start and the final position
 	int delta[3];													
 
 	long steps;													// Stores the number ot steps for this move (== (delta / speed) * ISR_FREQUENCY)
 	long nowSteps;
-	float percent;												// Stores the percent of the move that has been done
 
 	double incr[3];												// The increment it must goes forward on each step
 };

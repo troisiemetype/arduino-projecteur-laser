@@ -19,9 +19,13 @@ struct driverState{
 
 	int zDistance;													// Stores the distance from projector to wall
 
+	long size;														// How much pix there is in image
+	long percent_incr;												// How much pix there is for a percent
+	byte percent;													// Current percent
+
 	volatile byte moving;											// Knows if it's moving or not
 
-	volatile boolean move_flag;												//Sets each time a move is compute, so serial knows if this move has been sent
+	volatile boolean percent_flag;												//Sets each time a move is compute, so serial knows if this move has been sent
 
 };
 void driver_init();
@@ -29,6 +33,7 @@ void driver_interrupt_init();
 ISR(TIMER1_COMPA_vect);
 driverState * driver_get_ds();
 boolean driver_is_moving();
+void driver_set_size(long);
 volatile double * driver_get_position();
 
 #endif
