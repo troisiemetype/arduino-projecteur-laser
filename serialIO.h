@@ -71,6 +71,7 @@ void _serial_interrupt_init();
 byte _serial_rx_incr(byte index);
 byte _serial_tx_incr(byte index);
 void _serial_append_string(String data);
+void _serial_append_value(long value);
 void _serial_append_byte(char data);
 void _serial_clear_rx_buffer();
 

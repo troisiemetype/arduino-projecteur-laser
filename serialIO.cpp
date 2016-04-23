@@ -17,15 +17,18 @@
 #include "driver.h"
 #include "settings.h"
 
+#define rx_incr(i)	i = (i + 1)%RX_BUFFER_SIZE
+#define tx_incr(i)	i = (i + 1)%TX_BUFFER_SIZE
+
 serialState ss;
 long baudrate = BAUDRATE;
 
 // defining buffers for serial RX and TX.
-char rx_buffer[RX_BUFFER_SIZE];
+volatile char rx_buffer[RX_BUFFER_SIZE];
 volatile byte rx_head = 0;
 volatile byte rx_tail = 0;
 
-char tx_buffer[TX_BUFFER_SIZE];
+volatile char tx_buffer[TX_BUFFER_SIZE];
 volatile byte tx_head = 0;
 volatile byte tx_tail = 0;
 
@@ -33,17 +36,18 @@ volatile bool to_read_flag = 0;
 volatile bool to_write_flag = 0;
 byte rx_data_length = 0;
 
+
 void serial_init(){
 	memset(&ss, 0, sizeof(ss));												// Init the serial state struct
 	ss.xon_state = 1;														// Enables XON
 	_serial_interrupt_init();
+	_serial_append_string("Serial initialisé.");
 
 //	serial_send_message("liaison série initialisée");
 }
 
 void serial_get_data(){
 //	serial_xon_xoff();														// Verifies the buffer size
-
 	if (planner_get_available() < 2){										// Manage the planner buffer queue.
 //		serial_send_message("no buffer available");
 		return;
@@ -92,38 +96,47 @@ void serial_parse_json(){
 
 		if (in_byte == '{'){
 			ss.parser_state = PARSING_JSON_START;
+			_serial_append_string("PARSING_JSON_START");
+			rx_incr(rx_tail);
 			continue;
 		}
 
 		if (in_byte == '"'){
 			if (ss.parser_state == PARSING_JSON_START){
 				ss.parser_state = PARSING_JSON_VAR;
-				_serial_rx_incr(rx_tail);
+				rx_incr(rx_tail);
+				_serial_append_string("PARSING_JSON_VAR");
 				continue;
 			} else if (ss.parser_state == PARSING_JSON_VAR){
 				ss.parser_state = PARSING_JSON_VAR_OK;
+				_serial_append_string("PARSING_JSON_VAR_OK");
 			} else {
 				ss.parser_state == PARSING_JSON_ERROR_VAR;
+				_serial_append_string("PARSING_JSON_VAR_ERROR");
 			}
 		}
 
 		if (in_byte == ':'){
 			if (ss.parser_state == PARSING_JSON_VAR_OK){
 				ss.parser_state == PARSING_JSON_VALUE;
+				_serial_append_string("PARSING_JSON_VALUE");
 				is_neg = false;
-				_serial_rx_incr(rx_tail);
+				rx_incr(rx_tail);
 				continue;
 			} else {
 				ss.parser_state = PARSING_JSON_ERROR_PAIR;
+				_serial_append_string("PARSING_JSON_PAIR");
 			}
 		}
 
 		if (in_byte == ','){
 			ss.parser_state == PARSING_JSON_START;
+			_serial_append_string("PRASING_JSON_START");
 		}
 
 		if (in_byte == '}'){
 			ss.parser_state == PARSING_JSON_END;
+			_serial_append_string("PARSING_JSON_END");
 			_serial_clear_rx_buffer();
 			break;
 		}
@@ -149,35 +162,41 @@ void serial_parse_json(){
 			if (ss.inVar == "ID"){												// Sets the right value to the right var
 				ss.parser_data_received |= 32;
 				ss.id = ss.inValue;
+				_serial_append_string("ID");
 //				serial_send_pair("ID", ss.id);
 
 			} else if (ss.inVar == "X"){
 				ss.parser_data_received |= 16;
 				ss.posX = ss.inValue;
+				_serial_append_string("X");
 //				serial_send_pair("X", ss.posX);
 
 			} else if (ss.inVar == "Y"){
 				ss.parser_data_received |= 8;
 				ss.posY = ss.inValue;
+				_serial_append_string("Y");
 //				serial_send_pair("Y", ss.posY);
 
 			} else if (ss.inVar == "L"){
 				ss.parser_data_received |= 4;
 				ss.posL = ss.inValue;
+				_serial_append_string("L");
 //				serial_send_pair("L", ss.posL);
 
 			} else if (ss.inVar == "speed"){
 				ss.parser_data_received |= 2;
 				ss.speed = ss.inValue;
+				_serial_append_string("speed");
 //				serial_send_pair("speed", ss.speed);
 
 			} else if (ss.inVar == "mode"){
 				ss.parser_data_received |= 1;
 				ss.mode = ss.inValue;
+				_serial_append_string("mode");
 //				serial_send_pair("mode", ss.mode);
 			}
 		}
-		_serial_rx_incr(rx_tail);
+		rx_incr(rx_tail);
 	}
 }
 
@@ -196,20 +215,7 @@ void serial_record_values(){
 
 // Parse a cfg command.
 void serial_parse_cfg(){
-	delay(1);
-	String cfg_item = Serial.readStringUntil(':');
-	long cfg_value = Serial.parseInt();
-	serial_send_pair(cfg_item, cfg_value);
-	if(cfg_item == "baudrate"){
-		baudrate = cfg_value;
-		serial_send_message("baudrate updated");
-		Serial.end();
-		serial_init();
-	} else if (cfg_item = "size"){
-//		driver_set_size(cfg_value);
-		serial_send_message("size updated");
-	}
-	ss.parser_state = PARSING_CFG_END;
+
 }
 
 
@@ -252,43 +258,25 @@ void serial_write_data(){
 	}
 	moveBuffer *bf = planner_get_run_buffer();									// Get the current move buffer.
 
-	Serial.print("{\"ID\":");
-	Serial.print(bf->id);
-	Serial.print("}");
-	Serial.println();
-
 	ds->percent_flag = 0;
 }
 
 // This function write a pair of data to Serial, formated in json
 void serial_send_pair(String name, double value){
-	Serial.print("{\"");
-	Serial.print(name);
-	Serial.print("\":");
-	Serial.print(value);
-	Serial.print("}");
-	Serial.println();
+
 }
 
 // This function writes a simple message to Serial, formated in json
 void serial_send_message(String message){
-	Serial.print("{\"message\":\"");
-	Serial.print(message);
-	Serial.print("\"}");
-	Serial.println();
 }
 
 // This function is for debugging purpose: it prints "step" on Serial. Used to replace code breakpoints.
 void serial_step(){
-	Serial.println("step");
 }
 
 // This function send the current position
 void serial_send_position(){
 	driverState * ds = driver_get_ds();
-	serial_send_pair("pos_x", ds->now[0]);
-	serial_send_pair("pos_y", ds->now[1]);
-	serial_send_pair("pos_l", ds->now[2]);
 }
 
 
@@ -322,7 +310,7 @@ ISR(USART_RX_vect){
 		to_read_flag = 1;
 	}
 
-	head = _serial_rx_incr(head);
+	rx_incr(head);
 	rx_head = head;
 
 }
@@ -330,9 +318,9 @@ ISR(USART_RX_vect){
 // ISR Empty buffer interrupt.
 // Sends data while their is to.
 ISR(USART_UDRE_vect){
-	byte tail = tx_tail;										// Temp copy to limit up volatile acces.
+	byte tail = tx_tail;										// Temp copy to limit volatile acces.
 	UDR0 = tx_buffer[tail];											// Copy data buffer to TX data register.
-	tail = _serial_tx_incr(tail);													// Increment buffer tail pointer.
+	tx_incr(tail);													// Increment buffer tail pointer.
 	tx_tail = tail;												// Copy back the temporary value to tx_tail.
 
 	if (tail == tx_head){										// if head == tail, then nothing left to send, disconenct interrupt.
@@ -340,38 +328,24 @@ ISR(USART_UDRE_vect){
 	}
 }
 
-// Increment rx indexes. Loop if at buffer top.
-byte _serial_rx_incr(byte index){
-	index++;
-	if (index == RX_BUFFER_SIZE){
-		index = 0;
-	}
-	return index;
-}
-
-// Increment tx indexes. Loop if at buffer top.
-byte _serial_tx_incr(byte index){
-	index++;
-	if (index == TX_BUFFER_SIZE){
-		index = 0;
-	}
-	return index;
-}
-
 void _serial_append_string(String data){
 	int data_length = data.length();
 
 	for (int i=0; i<data_length; i++){
 		tx_buffer[tx_head] = data.charAt(i);
-		tx_head = _serial_tx_incr(tx_head);
+		tx_incr(tx_head);
 	}
 	_serial_append_byte(NL_CHAR);
+}
+void _serial_append_value(long data){
+	String data_to_send = String(data);
+	_serial_append_string(data_to_send);
 }
 
 void _serial_append_byte(char data){
 
 	tx_buffer[tx_head] = data;
-	tx_head = _serial_tx_incr(tx_head);
+	tx_incr(tx_head);
 
 	UCSR0B |= (1 << UDRIE0);
 }
