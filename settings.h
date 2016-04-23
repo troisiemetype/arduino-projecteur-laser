@@ -7,6 +7,8 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
+#define LANGUAGE				FRANCAIS
+
 // Serial settings
 #define BAUDRATE				115200					// Defines the baudrate used for the serial
 #define SERIAL_CONFIG			SERIAL_8N1				// See http://www.arduino.cc/en/Reference/Serial for possible values
