@@ -12,7 +12,7 @@
 
 
 #include <Arduino.h>
-#include "planner.h"
+#include "planner.h" 
 #include "serialIO.h"
 #include "driver.h"
 #include "settings.h"
@@ -20,17 +20,27 @@
 serialState ss;
 long baudrate = BAUDRATE;
 
+// defining buffers for serial RX and TX.
+char rx_buffer[RX_BUFFER_SIZE];
+volatile byte rx_head = 0;
+volatile byte rx_tail = 0;
+
+char tx_buffer[TX_BUFFER_SIZE];
+volatile byte tx_head = 0;
+volatile byte tx_tail = 0;
+
+volatile bool to_read_flag = 0;
+volatile bool to_write_flag = 0;
+byte rx_data_length = 0;
+
 void serial_init(){
 	memset(&ss, 0, sizeof(ss));												// Init the serial state struct
 	ss.xon_state = 1;														// Enables XON
-	Serial.begin(baudrate, SERIAL_CONFIG);
-	Serial.setTimeout(0.01);
-	serial_send_message("liaison série initialisée");
+	_serial_interrupt_init();
+
+//	serial_send_message("liaison série initialisée");
 }
 
-/* this function looks at the next char in the serial buffer, the ncalls the right function.
- * 
- */
 void serial_get_data(){
 //	serial_xon_xoff();														// Verifies the buffer size
 
@@ -38,174 +48,141 @@ void serial_get_data(){
 //		serial_send_message("no buffer available");
 		return;
 	}
-
-	int inByte = Serial.read();												// Read the next byte in the serial buffer
-	if (inByte == -1){
-		return;
-	}
-//	serial_send_pair("char", inByte);
-
-	if ((inByte == NL_CHAR) || (inByte == CR_CHAR)){						// If end of line, then parser wait for a string start
-/*		if ((ss.parser_state != PARSING_JSON_END) &&
-		(ss.parser_state != PARSING_CFG_END)){								// If the last string was not parsed till the end
-//			serial_send_message("Erreur fin de ligne");
-			serial_send_pair("erreur",ss.parser_state);
-			serial_send_again();
-		}
-*/		ss.parser_state = PARSING_IDLE;
-		return;
-	}
-
-	switch (ss.parser_state){												// Switch between the diferent possible states
-		case PARSING_IDLE:													// Default state: all commands done, waiting for new
-			serial_parse_input(inByte);
-			break;
-		case PARSING_JSON_START:											// Beggining a json string, waiting for a quote
-			serial_parse_json_start(inByte);
-			break;
-		case PARSING_JSON_VAR:												// Having a quote, waiting for var name
-			serial_parse_json_var(inByte);
-			break;
-		case PARSING_JSON_VALUE:											// having var name, waiting for a value
-			serial_parse_json_value(inByte);
-			break;
-		case PARSING_JSON_PAIR:												// Having value, waiting for new pair or end of json
-			serial_parse_json_pair(inByte);
-			break;
-		case PARSING_JSON_END:												// End of the json string, send values to planner
-			serial_record_values();
-			break;
-		case PARSING_CFG_START:
-			break;
-		case PARSING_CFG_VAR:
-			break;
-		default:
-//			serial_send_again();
-			serial_send_pair("erreur",ss.parser_state);
-			ss.parser_state = PARSING_IDLE;
-			serial_send_again();
-			break;
+	if (to_read_flag){
+		serial_parse();
 	}
 
 }
 
 // This function is the entrance of a new string. It sets the parser_state for json or info
-void serial_parse_input(int inByte){
-	switch (inByte){
-		case char('{'):
-			ss.parser_state++;
-			break;
-		case char('$'):
-			ss.parser_state = PARSING_CFG_START;
-			serial_parse_cfg();
-			break;
-		default:
-//			serial_send_message("Erreur parse input");
-			ss.parser_state = PARSING_ERROR_INPUT;
-			break;
-	}
+void serial_parse(){
+	rx_data_length = rx_head - rx_tail;
+	if (rx_data_length < 0) rx_data_length += 64;
 
-}
-
-// This function waits for the quote that means the start of a name value
-void serial_parse_json_start(int inByte){
-//	serial_send_message("parse json");
-	ss.inVar="";
-	ss.inValue=0;
-	if (inByte == '"'){
-		ss.parser_state++;
-	} else {
-		ss.parser_state = PARSING_JSON_ERROR_START;
-//		serial_send_message("Erreur parse json start");
+	if (rx_buffer[rx_tail] == '{'){
+		serial_parse_json();
+	}else if (rx_buffer[rx_tail] == '$'){
+		serial_parse_cfg();
 	}
 }
 
-// This function records the var name until it finds a second quote
-void serial_parse_json_var(int inByte){
-//	serial_send_message("parse var");
-	if (inByte == '"'){
-		ss.parser_state++;
-	} else {
-		ss.inVar += char(inByte);
-	}
-}
+/* this function parse the json string it receives
+ * The json string must formed like that:
+ * {"var1":value1,"var2":value2,...,"varN":valueN}, without spaces between values.
+ * The loop turns while there is available data to read
+ * - First it looks for incomming char.
+ * - If it's an openning brace, it's the start of a json string, so it loops again
+ * - If it's a comma, there should be a new var/value pair, so it loops again
+ * - If it's a closing brace, it ends the loop to compute values
+ * - If it's a quote mark, that is the start of a var/value pair, as long as there is data available
+ * - If it finds one, it then reads the name of the var until the next quote mark.
+ * - After the value, it looks for a colon that should separate th name of the var from its value.
+ *   If there is no, it returns the function with an error
+ * - The following value should be a number, so it test if it's one. If it's not, it tests for a minus sign. Else it loops.
+ * - If it's a number (positive or negative) it records it as the current value
+ * - Then it tests the name of the var received against what it should be.
+ * - If ok, it records the value and sets a flag so it's known that the value has been set.
+ * - If one or several flags have been set, it sends the data to the planner, that populate a new buffer
+ */
+void serial_parse_json(){
+	bool is_neg = false;
+	byte in_byte = 0;
+	while (rx_tail != rx_head){
+		in_byte = rx_buffer[rx_tail];
 
-// This function parse the value of the pair
-// Once done, it records this value temporarly in the serialstate singleton. If there is no problem, it will later be sent to the planner
-void serial_parse_json_value(int inByte){
-	delay(1);
-//	serial_send_message(ss.inVar);
-//	serial_send_message("parse value");
-	if (inByte ==':'){
-		if ((Serial.peek() < '0' || Serial.peek() > '9')){					// verifies that the following byte is a number
-			if (Serial.peek() !='-'){										// It also can be a minux sign for negative number
-				ss.parser_state = PARSING_JSON_ERROR_VALUE;						// sets statuts, then continue to next value
-//				serial_send_message("Erreur parse json start");
-				return;
+		if (in_byte == '{'){
+			ss.parser_state = PARSING_JSON_START;
+			continue;
+		}
+
+		if (in_byte == '"'){
+			if (ss.parser_state == PARSING_JSON_START){
+				ss.parser_state = PARSING_JSON_VAR;
+				_serial_rx_incr(rx_tail);
+				continue;
+			} else if (ss.parser_state == PARSING_JSON_VAR){
+				ss.parser_state = PARSING_JSON_VAR_OK;
+			} else {
+				ss.parser_state == PARSING_JSON_ERROR_VAR;
 			}
 		}
 
-		ss.parser_state++;
-		ss.inValue = Serial.parseInt();
-
-		if (ss.inVar == "ID"){												// Sets the right value to the right var
-			ss.parser_data_received |= 32;
-			ss.id = ss.inValue;
-//			serial_send_pair("ID", ss.id);
-
-		} else if (ss.inVar == "X"){
-			ss.parser_data_received |= 16;
-			ss.posX = ss.inValue;
-//			serial_send_pair("X", ss.posX);
-
-		} else if (ss.inVar == "Y"){
-			ss.parser_data_received |= 8;
-			ss.posY = ss.inValue;
-//			serial_send_pair("Y", ss.posY);
-
-		} else if (ss.inVar == "L"){
-			ss.parser_data_received |= 4;
-			ss.posL = ss.inValue;
-//			serial_send_pair("L", ss.posL);
-
-		} else if (ss.inVar == "speed"){
-			ss.parser_data_received |= 2;
-			ss.speed = ss.inValue;
-//			serial_send_pair("speed", ss.speed);
-
-		} else if (ss.inVar == "mode"){
-			ss.parser_data_received |= 1;
-			ss.mode = ss.inValue;
-//			serial_send_pair("mode", ss.mode);
+		if (in_byte == ':'){
+			if (ss.parser_state == PARSING_JSON_VAR_OK){
+				ss.parser_state == PARSING_JSON_VALUE;
+				is_neg = false;
+				_serial_rx_incr(rx_tail);
+				continue;
+			} else {
+				ss.parser_state = PARSING_JSON_ERROR_PAIR;
+			}
 		}
 
-	} else {
-		ss.parser_state = PARSING_IDLE;
+		if (in_byte == ','){
+			ss.parser_state == PARSING_JSON_START;
+		}
+
+		if (in_byte == '}'){
+			ss.parser_state == PARSING_JSON_END;
+			_serial_clear_rx_buffer();
+			break;
+		}
+
+		if (ss.parser_state == PARSING_JSON_VAR){
+			ss.inVar += in_byte;
+		}
+
+		if (ss.parser_state == PARSING_JSON_VALUE){
+			if (in_byte < '0' || in_byte >'9'){
+				if (in_byte == '-'){
+					is_neg = true;
+				}
+				ss.parser_state = PARSING_JSON_VALUE_OK;
+			} else {
+				ss.inValue *=10;
+				ss.inValue += in_byte;
+			}
+		}
+
+		if (ss.parser_state == PARSING_JSON_VALUE_OK){
+
+			if (ss.inVar == "ID"){												// Sets the right value to the right var
+				ss.parser_data_received |= 32;
+				ss.id = ss.inValue;
+//				serial_send_pair("ID", ss.id);
+
+			} else if (ss.inVar == "X"){
+				ss.parser_data_received |= 16;
+				ss.posX = ss.inValue;
+//				serial_send_pair("X", ss.posX);
+
+			} else if (ss.inVar == "Y"){
+				ss.parser_data_received |= 8;
+				ss.posY = ss.inValue;
+//				serial_send_pair("Y", ss.posY);
+
+			} else if (ss.inVar == "L"){
+				ss.parser_data_received |= 4;
+				ss.posL = ss.inValue;
+//				serial_send_pair("L", ss.posL);
+
+			} else if (ss.inVar == "speed"){
+				ss.parser_data_received |= 2;
+				ss.speed = ss.inValue;
+//				serial_send_pair("speed", ss.speed);
+
+			} else if (ss.inVar == "mode"){
+				ss.parser_data_received |= 1;
+				ss.mode = ss.inValue;
+//				serial_send_pair("mode", ss.mode);
+			}
+		}
+		_serial_rx_incr(rx_tail);
 	}
 }
 
-// This function, once a pair has been received, waits for a new pair (comma) or for the end of json string (clising brace)
-void serial_parse_json_pair(int inByte){
-//	serial_send_message("parse pair ok");
-	switch (inByte){
-		case char(','):
-//			serial_send_message("new pair");
-			ss.parser_state = PARSING_JSON_START;
-			break;
-		case char('}'):
-//			serial_send_message("end of string");
-			ss.parser_state = PARSING_JSON_END;
-			serial_record_values();
-			break;
-		default:
-			ss.parser_state = PARSING_JSON_ERROR_PAIR;
-//			serial_send_message("Erreur json pair");
-			break;
-	}
 
-}
-
-// This function sends the json string received to the planner buffer
+// Send the json string received to the planner buffer.
 void serial_record_values(){
 	serial_send_go();
 	if (ss.parser_data_received != 0){
@@ -217,6 +194,7 @@ void serial_record_values(){
 	ss.inValue=0;
 }
 
+// Parse a cfg command.
 void serial_parse_cfg(){
 	delay(1);
 	String cfg_item = Serial.readStringUntil(':');
@@ -228,30 +206,13 @@ void serial_parse_cfg(){
 		Serial.end();
 		serial_init();
 	} else if (cfg_item = "size"){
-		driver_set_size(cfg_value);
+//		driver_set_size(cfg_value);
 		serial_send_message("size updated");
 	}
 	ss.parser_state = PARSING_CFG_END;
 }
 
-/* this function parse the json string it receives
- * The json string must formed like that:
- * {"var1":value1,"var2":value2,...,"varN":valueN}
- * The loop turns while there is available data to read
- * - First it looks for incomming char.
- * - If it's an openning brace, it's the start of a json string, so it loops again
- * - If it's a comma, there should be a new var/value pair, so it loops again
- * - If it's a closing brace, it ends the loop to compute values
- * - If it's a quote mark, that is the start of a var/value pair, as long as there is data available
- * - If it finds one, it then reads the name of the var until the next quote mark.
- * - After the value, it looks for a colon that should separate th name of the var from its value.
- *   If there is no, it returns the function with an error
- * - The following value should be a number, so it test if it's one. If it's not, it tests for a minus sign. Else it returns with an error
- * - If it's a number (positive or negative) it records it as the current value
- * - Then it tests the name of the var received against what it should be.
- * - If ok, it records the value and sets a flag so it's known that the value has been set.
- * - If one or several flags have been set, it sends the data to the planner, that populate a new buffer
- */
+
 
 // This function looks at how the serial buffer is full. It sends the xon/xoff chars according to that.
 // It's called by the serial_get_data function, that is itself called by the main loop.
@@ -328,4 +289,93 @@ void serial_send_position(){
 	serial_send_pair("pos_x", ds->now[0]);
 	serial_send_pair("pos_y", ds->now[1]);
 	serial_send_pair("pos_l", ds->now[2]);
+}
+
+
+// Serila interrupt init function. Set the registers according to settings values and needs.
+void _serial_interrupt_init(){
+	unsigned int ubr = CLOCK_SPEED/16/(BAUDRATE - 1);
+//	Serial.print(tra, DEC);
+	cli();
+
+	UBRR0H = (ubr>>8);												// Set the baudrate register, high first, then low.
+	UBRR0L = ubr;
+
+	// UCSR0A is not touched: it contains flags.
+	UCSR0B |= (1 << RXCIE0);										// Enable RX interrupts.
+//	UCSR0B |= (1 << TXCIE0);										// Enable TX interrupts.
+//	UCSR0B |= (1 << UDRIE0);										// Enable empty buffer interrupt. Enable when writing data.
+	UCSR0B |= (1 << RXEN0);											// Enable RX.
+	UCSR0B |= (1 << TXEN0);											// Enable TX.
+
+	sei();
+
+}
+
+// ISR RX interrupt.
+// This populates the RX buffer with incoming bytes.
+ISR(USART_RX_vect){
+	byte head = rx_head;
+	rx_buffer[head] = UDR0;
+
+	if (rx_buffer[head] == NL_CHAR){
+		to_read_flag = 1;
+	}
+
+	head = _serial_rx_incr(head);
+	rx_head = head;
+
+}
+
+// ISR Empty buffer interrupt.
+// Sends data while their is to.
+ISR(USART_UDRE_vect){
+	byte tail = tx_tail;										// Temp copy to limit up volatile acces.
+	UDR0 = tx_buffer[tail];											// Copy data buffer to TX data register.
+	tail = _serial_tx_incr(tail);													// Increment buffer tail pointer.
+	tx_tail = tail;												// Copy back the temporary value to tx_tail.
+
+	if (tail == tx_head){										// if head == tail, then nothing left to send, disconenct interrupt.
+		UCSR0B &= ~(1 << UDRIE0);
+	}
+}
+
+// Increment rx indexes. Loop if at buffer top.
+byte _serial_rx_incr(byte index){
+	index++;
+	if (index == RX_BUFFER_SIZE){
+		index = 0;
+	}
+	return index;
+}
+
+// Increment tx indexes. Loop if at buffer top.
+byte _serial_tx_incr(byte index){
+	index++;
+	if (index == TX_BUFFER_SIZE){
+		index = 0;
+	}
+	return index;
+}
+
+void _serial_append_string(String data){
+	int data_length = data.length();
+
+	for (int i=0; i<data_length; i++){
+		tx_buffer[tx_head] = data.charAt(i);
+		tx_head = _serial_tx_incr(tx_head);
+	}
+	_serial_append_byte(NL_CHAR);
+}
+
+void _serial_append_byte(char data){
+
+	tx_buffer[tx_head] = data;
+	tx_head = _serial_tx_incr(tx_head);
+
+	UCSR0B |= (1 << UDRIE0);
+}
+
+void _serial_clear_rx_buffer(){
+	rx_tail = rx_head;
 }

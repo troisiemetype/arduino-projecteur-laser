@@ -18,7 +18,7 @@ moveBufferPool mbp;
  */
 void planner_init(){
 	planner_init_buffer();
-	serial_send_message("planner initialisé");
+//	serial_send_message("planner initialisé");
 	
 }
 

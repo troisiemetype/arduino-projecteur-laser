@@ -29,7 +29,7 @@ void driver_init(){
 	memset(&ds, 0, sizeof(ds));										// Init the driver state with 0
 	ds.zDistance = Z_DISTANCE;
 	driver_interrupt_init();
-	serial_send_message("driver initialisé");
+//	serial_send_message("driver initialisé");
 
 }
 

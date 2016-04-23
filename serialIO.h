@@ -8,6 +8,9 @@
 #ifndef SERIALIO_H
 #define SERIALIO_H
 
+#define RX_BUFFER_SIZE				64
+#define TX_BUFFER_SIZE				64
+
 #define XON_SET 			1
 #define XOFF_SET			0
 
@@ -15,20 +18,22 @@
 #define PARSING_IDLE				0
 #define PARSING_JSON_START			1
 #define PARSING_JSON_VAR			2
-#define PARSING_JSON_VALUE			3
-#define PARSING_JSON_PAIR			4
-#define PARSING_JSON_END			5
-#define PARSING_ERROR_INPUT			6
-#define PARSING_JSON_ERROR_START	7
-#define PARSING_JSON_ERROR_VAR		8
-#define PARSING_JSON_ERROR_VALUE	9
-#define PARSING_JSON_ERROR_PAIR		10
-#define PARSING_JSON_ERROR			11
+#define PARSING_JSON_VAR_OK			3
+#define PARSING_JSON_VALUE			4
+#define PARSING_JSON_VALUE_OK		5
+#define PARSING_JSON_PAIR			6
+#define PARSING_JSON_END			7
+#define PARSING_ERROR_INPUT			8
+#define PARSING_JSON_ERROR_START	9
+#define PARSING_JSON_ERROR_VAR		10
+#define PARSING_JSON_ERROR_VALUE	11
+#define PARSING_JSON_ERROR_PAIR		12
+#define PARSING_JSON_ERROR			13
 
-#define PARSING_CFG_START			12
-#define PARSING_CFG_VAR				13
-#define PARSING_CFG_VALUE			14
-#define PARSING_CFG_END				15
+#define PARSING_CFG_START			14
+#define PARSING_CFG_VAR				15
+#define PARSING_CFG_VALUE			16
+#define PARSING_CFG_END				17
 
 struct serialState{
 	byte parser_state;
@@ -50,11 +55,8 @@ struct serialState{
 
 void serial_init();
 void serial_get_data();
-void serial_parse_input(int inByte);
-void serial_parse_json_start(int inByte);
-void serial_parse_json_var(int inByte);
-void serial_parse_json_value(int inByte);
-void serial_parse_json_pair(int inByte);
+void serial_parse();
+void serial_parse_json();
 void serial_record_values();
 void serial_parse_cfg();
 byte serial_xon_xoff();
@@ -65,5 +67,11 @@ void serial_send_pair(String text, double value);
 void serial_send_message(String message);
 void serial_step();
 void serial_send_position();
+void _serial_interrupt_init();
+byte _serial_rx_incr(byte index);
+byte _serial_tx_incr(byte index);
+void _serial_append_string(String data);
+void _serial_append_byte(char data);
+void _serial_clear_rx_buffer();
 
 #endif
