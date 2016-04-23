@@ -25,7 +25,7 @@ void serial_init(){
 	ss.xon_state = 1;														// Enables XON
 	Serial.begin(baudrate, SERIAL_CONFIG);
 	Serial.setTimeout(0.01);
-	serial_send_message("liaison série initialisée");
+	serial_send_message("Liaison série initialisée.");
 }
 
 /* this function looks at the next char in the serial buffer, the ncalls the right function.
@@ -228,7 +228,7 @@ void serial_parse_cfg(){
 		Serial.end();
 		serial_init();
 	} else if (cfg_item = "size"){
-		driver_set_size(cfg_value);
+//		driver_set_size(cfg_value);
 		serial_send_message("size updated");
 	}
 	ss.parser_state = PARSING_CFG_END;

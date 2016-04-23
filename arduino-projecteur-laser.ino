@@ -26,6 +26,7 @@ void setup(){
 	I2C_init();
 	planner_init();
 	driver_init();
+	serial_send_message("Projecteur Initialisé.");
 }
 
 #define DISPATCH(func) if (func == 0) return
