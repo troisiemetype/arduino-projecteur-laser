@@ -33,7 +33,7 @@ void I2C_init(){
 	I2C_write('Y', 0x80);
 	I2C_update();
 
-//	serial_send_message("liaison I2C initialisée");
+	serial_send_message("Liaison I2C initialisée.");
 
 
 

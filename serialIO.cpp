@@ -39,9 +39,8 @@ void serial_init(){
 	memset(&ss, 0, sizeof(ss));												// Init the serial state struct
 	ss.xon_state = 1;														// Enables XON
 	_serial_interrupt_init();
-	_serial_append_string("Serial initialisé.");
 
-//	serial_send_message("liaison série initialisée");
+	serial_send_message("Liaison série initialisée.");
 }
 
 void serial_get_data(){
@@ -113,12 +112,12 @@ void _serial_parse_json(){
 		if (ss.parser_state == PARSING_IDLE){
 			if (in_byte == '{'){
 				ss.parser_state = PARSING_JSON_START;
-				_serial_append_string("json start");
+//				_serial_append_string("json start");
 
 			} else {
 				ss.parser_state = PARSING_JSON_ERROR_START;
 				_serial_flush_rx_buffer();
-				_serial_append_string("json error start");
+//				_serial_append_string("json error start");
 				break;
 			}
 
@@ -126,57 +125,57 @@ void _serial_parse_json(){
 			if (in_byte == '"'){
 				ss.parser_state = PARSING_JSON_VAR;
 				ss.inVar = "";
-				_serial_append_string("json var");
+//				_serial_append_string("json var");
 
 			} else {
 				ss.parser_state = PARSING_JSON_ERROR_VAR;
 				_serial_flush_rx_buffer();
-				_serial_append_string("json error var");
+//				_serial_append_string("json error var");
 				break;
 			}
 
 		} else if (ss.parser_state == PARSING_JSON_VAR){
 			if ((in_byte >= 'a' && in_byte <= 'z') || (in_byte >= 'A' && in_byte <= 'Z')){
 				ss.inVar += in_byte;
-				_serial_append_string(ss.inVar);
+//				_serial_append_string(ss.inVar);
 
 			} else if (in_byte = '"'){
 				ss.parser_state = PARSING_JSON_VAR_OK;
-				_serial_append_string("json var ok");
+//				_serial_append_string("json var ok");
 
 			} else {
 				ss.parser_state = PARSING_JSON_ERROR_VAR;
 				_serial_flush_rx_buffer();
-				_serial_append_string("json error var");
+//				_serial_append_string("json error var");
 				break;
 			}
 			
 		} else if (ss.parser_state == PARSING_JSON_VAR_OK){
 			if (in_byte == ':'){
 				ss.parser_state = PARSING_JSON_VALUE_START;
-				_serial_append_string("json value start");
+//				_serial_append_string("json value start");
 				ss.inValue = 0;
 				is_neg = 0;
 
 			} else {
 				ss.parser_state = PARSING_JSON_ERROR_PAIR;
 				_serial_flush_rx_buffer();
-				_serial_append_string("json error pair");
+//				_serial_append_string("json error pair");
 				break;
 			}
 			
 		} else if (ss.parser_state == PARSING_JSON_VALUE_START){
 			if (in_byte == '-'){
 				is_neg = 1;
-				_serial_append_string("is neg");
+//				_serial_append_string("is neg");
 			} else if (in_byte >= '0' && in_byte <= '9'){
 				ss.inValue *= 10;
 				ss.inValue += (in_byte - 48);
-				_serial_append_value(ss.inValue);
+//				_serial_append_value(ss.inValue);
 			} else {
 				ss.parser_state = PARSING_JSON_ERROR_VALUE;
 				_serial_flush_rx_buffer();
-				_serial_append_string("json error value start");
+//				_serial_append_string("json error value start");
 				break;
 			}
 			ss.parser_state = PARSING_JSON_VALUE;
@@ -185,7 +184,7 @@ void _serial_parse_json(){
 			if (in_byte >= '0' && in_byte <= '9'){
 				ss.inValue *= 10;
 				ss.inValue += (in_byte - 48);
-				_serial_append_value(ss.inValue);
+//				_serial_append_value(ss.inValue);
 
 			} else if (in_byte == ','){
 				ss.parser_state = PARSING_JSON_START;
@@ -193,7 +192,7 @@ void _serial_parse_json(){
 					ss.inValue = -ss.inValue;
 				}
 				_serial_record_pair();
-				_serial_append_string("json start");
+//				_serial_append_string("json start");
 
 			} else if (in_byte == '}'){
 				ss.parser_state = PARSING_JSON_END;
@@ -201,12 +200,12 @@ void _serial_parse_json(){
 					ss.inValue = -ss.inValue;
 				}
 				_serial_record_pair();
-				_serial_append_string("json end");
+//				_serial_append_string("json end");
 
 			} else {
 				ss.parser_state = PARSING_JSON_ERROR_VALUE;
 				_serial_flush_rx_buffer();
-				_serial_append_string("json error value");
+//				_serial_append_string("json error value");
 				break;
 			}
 			
@@ -222,7 +221,6 @@ void _serial_parse_json(){
 
 		rx_incr(rx_tail);
 	}
-
 	ss.parser_state = PARSING_IDLE;
 	to_read_flag =0;
 }
@@ -230,46 +228,34 @@ void _serial_parse_json(){
 void _serial_record_pair(){
 
 	if (ss.inVar == "ID"){												// Sets the right value to the right var
-		ss.parser_data_received |= 32;
-		ss.id = ss.inValue;
-		_serial_append_string("ID: ");
-		_serial_append_value(ss.inValue);
-//				serial_send_pair("ID", ss.id);
+		ss.parser_data_received |= 32;									// Sets a flag.
+		ss.id = ss.inValue;												// Records value.
+		serial_send_pair("ID", ss.id);
 
 	} else if (ss.inVar == "X"){
 		ss.parser_data_received |= 16;
 		ss.posX = ss.inValue;
-		_serial_append_string("X: ");
-		_serial_append_value(ss.inValue);
-//				serial_send_pair("X", ss.posX);
+		serial_send_pair("X", ss.posX);
 
 	} else if (ss.inVar == "Y"){
 		ss.parser_data_received |= 8;
 		ss.posY = ss.inValue;
-		_serial_append_string("Y: ");
-		_serial_append_value(ss.inValue);
-//				serial_send_pair("Y", ss.posY);
+		serial_send_pair("Y", ss.posY);
 
 	} else if (ss.inVar == "L"){
 		ss.parser_data_received |= 4;
 		ss.posL = ss.inValue;
-		_serial_append_string("L: ");
-		_serial_append_value(ss.inValue);
-//				serial_send_pair("L", ss.posL);
+		serial_send_pair("L", ss.posL);
 
 	} else if (ss.inVar == "speed"){
 		ss.parser_data_received |= 2;
 		ss.speed = ss.inValue;
-		_serial_append_string("speed: ");
-		_serial_append_value(ss.inValue);
-//				serial_send_pair("speed", ss.speed);
+		serial_send_pair("speed", ss.speed);
 
 	} else if (ss.inVar == "mode"){
 		ss.parser_data_received |= 1;
 		ss.mode = ss.inValue;
-		_serial_append_string("mode: ");
-		_serial_append_value(ss.inValue);
-//				serial_send_pair("mode", ss.mode);
+		serial_send_pair("mode", ss.mode);
 	}
 }
 
@@ -322,36 +308,31 @@ void _serial_send_again(){
 	serial_send_pair("send", 2);
 }
 
-
-// This function is called on each main loop, to send back datas to the python program
-void serial_write_data(){
-	driverState * ds = driver_get_ds();											// Get the driver singleton.
-	if (ds->percent_flag == 0){
-		return;
-	}
-	moveBuffer *bf = planner_get_run_buffer();									// Get the current move buffer.
-
-	ds->percent_flag = 0;
-}
-
 // This function write a pair of data to Serial, formated in json
 void serial_send_pair(String name, double value){
+	_serial_append_string("{\"");
+	_serial_append_string(name);
+	_serial_append_string("\":");
+	_serial_append_value(value);
+	_serial_append_string("}");
+	_serial_append_nl();
+
 
 }
 
 // This function writes a simple message to Serial, formated in json
 void serial_send_message(String message){
+	_serial_append_string("{\"message\":");
+	_serial_append_string(message);
+	_serial_append_string("}");
+	_serial_append_nl();
 }
 
 // This function is for debugging purpose: it prints "step" on Serial. Used to replace code breakpoints.
 void serial_step(){
+	_serial_append_string("step");
+	_serial_append_nl();
 }
-
-// This function send the current position
-void serial_send_position(){
-	driverState * ds = driver_get_ds();
-}
-
 
 // Serila interrupt init function. Set the registers according to settings values and needs.
 void _serial_interrupt_init(){
@@ -396,22 +377,24 @@ ISR(USART_UDRE_vect){
 	tx_incr(tail);													// Increment buffer tail pointer.
 	tx_tail = tail;													// Copy back the temporary value to tx_tail.
 
-	if (tail == tx_head){										// if head == tail, then nothing left to send, disconenct interrupt.
+	if (tail == tx_head){											// if head == tail, then nothing left to send, disconenct interrupt.
 		UCSR0B &= ~(1 << UDRIE0);
 	}
 }
 
 void _serial_append_string(String data){
 	int data_length = data.length();
-
 	for (int i=0; i<data_length; i++){
 		_serial_append_byte(data.charAt(i));
 	}
-	_serial_append_byte(NL_CHAR);
 }
 void _serial_append_value(long data){
 	String data_to_send = String(data);
 	_serial_append_string(data_to_send);
+}
+
+void _serial_append_nl(){
+	_serial_append_byte(NL_CHAR);
 }
 
 void _serial_append_byte(char data){

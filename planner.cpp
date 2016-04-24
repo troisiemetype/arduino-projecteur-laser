@@ -18,7 +18,7 @@ moveBufferPool mbp;
  */
 void planner_init(){
 	planner_init_buffer();
-//	serial_send_message("planner initialisé");
+	serial_send_message("Planner initialisé.");
 	
 }
 
@@ -129,7 +129,6 @@ void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mo
 
 	// steps up the write pointer.
 	planner_set_next_buffer(0);
-//	mbp.write = bf->nx;
 	mbp.available--;
 
 }
@@ -190,5 +189,5 @@ void planner_plan_move(){
 	}
 
 	bf->compute = 1;														// The buffer is marked as having been compute
-	mbp.queue = bf->nx;														// The queue index is step up
+	planner_set_next_buffer(1);												// The queue index is step up
 }
