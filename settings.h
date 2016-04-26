@@ -11,13 +11,6 @@
 
 // Serial settings
 #define BAUDRATE				115200					// Defines the baudrate used for the serial
-#define SERIAL_CONFIG			SERIAL_8N1				// See http://www.arduino.cc/en/Reference/Serial for possible values
-#define SERIAL_TIMEOUT			0.1						// Défines the serial timeout
-#define XON_CHAR				17						// XON char. 0x11; ctrl+Q
-#define XOFF_CHAR				19						// XOFF char. 0x13; ctrl+S
-#define RESET_CHAR				24						// Rest char. 0x18; ctrl+X
-#define NL_CHAR					10						// New line char. 0x0A. \n
-#define CR_CHAR					13						// Carriage return char. 0x0D. \r
 
 // I2C settings
 #define X_I2C_ADDR				0x62					// These addresses can changed accroding to the hardware DAC you use

@@ -32,12 +32,14 @@ char tx_buffer[TX_BUFFER_SIZE];
 char tx_head = 0;
 volatile char tx_tail = 0;
 
-bool to_read_flag = 0;
+volatile bool to_read_flag = 0;
 bool to_write_flag = 0;
+bool percent_flag = 0;
+long percent_value = 0;
 
 void serial_init(){
 	memset(&ss, 0, sizeof(ss));												// Init the serial state struct
-	ss.xon_state = 1;														// Enables XON
+	ss.flow_state = SET_XON;												// Enables XON
 
 	_serial_interrupt_init();
 	
@@ -52,11 +54,18 @@ void serial_get_data(){
 //		serial_send_message("no buffer available");
 		return;
 	}
+
 	if (to_read_flag){
 //		_serial_append_value(rx_head);
 //		_serial_append_value(rx_tail);
 		_serial_parse();
 	}
+
+	if (percent_flag){
+		percent_flag = 0;
+		serial_send_pair("per", percent_flag);
+	}
+
 
 }
 
@@ -80,7 +89,7 @@ void _serial_parse(){
  * It's driven by parser states. For each state we should get precise chars.
  * If these chars are found, parser goes to th next state, and test chars again.
  * A normal loop should be:
- * PARSING_IDLE						We have just ereceived a new data string. Waiting for opening brace
+ * PARSING_IDLE						We have just received a new data string. Waiting for opening brace
  *
  * PARSING_JSON_START 				looking for quote mark to start parsing var name
  *
@@ -107,6 +116,14 @@ void _serial_parse_json(){
 	char in_byte = 0;
 	while (rx_tail != rx_head){
 		in_byte = rx_buffer[rx_tail];
+
+		char queue = _serial_rx_queue();								// Get queue size.
+
+		if ((queue < RX_FLOW_DOWN) && (ss.flow_state == XOFF_SET)){		// Test buffer size against size limit.
+			ss.flow_state = SET_XON;									// Set the new flow control state
+			UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
+	}
+
 //		_serial_append_value(rx_head);
 //		_serial_append_value(rx_tail);
 
@@ -222,6 +239,7 @@ void _serial_parse_json(){
 
 		rx_incr(rx_tail);
 	}
+//	_serial_send_go();
 	ss.parser_state = PARSING_IDLE;
 	to_read_flag =0;
 }
@@ -236,34 +254,33 @@ void _serial_record_pair(){
 	} else if (ss.inVar == "X"){
 		ss.parser_data_received |= 16;
 		ss.posX = ss.inValue;
-		serial_send_pair("X", ss.posX);
+//		serial_send_pair("X", ss.posX);
 
 	} else if (ss.inVar == "Y"){
 		ss.parser_data_received |= 8;
 		ss.posY = ss.inValue;
-		serial_send_pair("Y", ss.posY);
+//		serial_send_pair("Y", ss.posY);
 
 	} else if (ss.inVar == "L"){
 		ss.parser_data_received |= 4;
 		ss.posL = ss.inValue;
-		serial_send_pair("L", ss.posL);
+//		serial_send_pair("L", ss.posL);
 
 	} else if (ss.inVar == "speed"){
 		ss.parser_data_received |= 2;
 		ss.speed = ss.inValue;
-		serial_send_pair("speed", ss.speed);
+//		serial_send_pair("speed", ss.speed);
 
 	} else if (ss.inVar == "mode"){
 		ss.parser_data_received |= 1;
 		ss.mode = ss.inValue;
-		serial_send_pair("mode", ss.mode);
+//		serial_send_pair("mode", ss.mode);
 	}
 }
 
 
 // Send the json string received to the planner buffer.
 void _serial_record_values(){
-	_serial_send_go();
 	if (ss.parser_data_received != 0){
 //		serial_send_message("populates buffer");
 		planner_set_buffer(ss.id, ss.posX, ss.posY, ss.posL, ss.speed, ss.mode, ss.parser_data_received);	// Populates the buffer with the values received
@@ -273,53 +290,16 @@ void _serial_record_values(){
 	ss.inValue=0;
 }
 
-<<<<<<< HEAD
-void serial_parse_cfg(){
-	delay(1);
-	String cfg_item = Serial.readStringUntil(':');
-	long cfg_value = Serial.parseInt();
-	serial_send_pair(cfg_item, cfg_value);
-	if(cfg_item == "baudrate"){
-		baudrate = cfg_value;
-		serial_send_message("baudrate updated");
-		Serial.end();
-		serial_init();
-	} else if (cfg_item = "size"){
-//		driver_set_size(cfg_value);
-		serial_send_message("size updated");
-	}
-	ss.parser_state = PARSING_CFG_END;
-=======
 // Parse a cfg command.
 void _serial_parse_cfg(){
 
->>>>>>> serial
 }
-
-
-
-// This function looks at how the serial buffer is full. It sends the xon/xoff chars according to that.
-// It's called by the serial_get_data function, that is itself called by the main loop.
- /*
-byte serial_xon_xoff(){
-	ss.available = Serial.available();											// Look at how much bytes are in the buffer
-	if (ss.available > 40 && ss.xon_state == XON_SET){							// If more then a given amount, send XOFF (if not already sent)
-		ss.xon_state = XOFF_SET;
-		Serial.write(XOFF_CHAR);
-//		serial_send_message("XOFF");
-	} else if (ss.available < 20 && ss.xon_state == XOFF_SET){					//If bellow a certain amount, send XON again (if not already)
-		ss.xon_state = XON_SET;
-		Serial.write(XON_CHAR);
-//		serial_send_message("XON");
-	}
-
-	return ss.available;
-}
-*/
 
 //This sends the go signal when Serial is able to receive
 void _serial_send_go(){
-	serial_send_pair("send", 1);
+//	serial_send_pair("send", 1);
+	_serial_append_string("$s");
+	_serial_append_nl();
 }
 
 //This sends the again signal in case of lost data
@@ -341,10 +321,16 @@ void serial_send_pair(String name, double value){
 
 // This function writes a simple message to Serial, formated in json
 void serial_send_message(String message){
-	_serial_append_string("{\"message\":");
+	_serial_append_string("{\"message\":\"");
 	_serial_append_string(message);
-	_serial_append_string("}");
+	_serial_append_string("\"}");
 	_serial_append_nl();
+}
+
+// Set flag for sending percent
+void serial_percent(long id){
+	percent_flag = 1;
+	percent_value = id;
 }
 
 // This function is for debugging purpose: it prints "step" on Serial. Used to replace code breakpoints.
@@ -376,29 +362,57 @@ void _serial_interrupt_init(){
 // ISR RX interrupt.
 // This populates the RX buffer with incoming bytes.
 ISR(USART_RX_vect){
-	char head = rx_head;
-	rx_buffer[head] = UDR0;
+	char head = rx_head;											// Copy the rx_head in a local var to preserve volatile.
+	rx_buffer[head] = UDR0;											// Copy UDR0 byte to buffer queue.
 
-	if (rx_buffer[head] == NL_CHAR){
+	if (rx_buffer[head] == NL_CHAR){								// If EOL, set a flag that serial_get_data will read.
 		to_read_flag = 1;
+	} else if (rx_buffer[head] == XON_CHAR){						// Implement XON/XOFF for TX?
+	} else if (rx_buffer[head] == XOFF_CHAR){
 	}
 
-	rx_incr(head);
-	rx_head = head;
+	rx_incr(head);													// Increment buffer pointer.
+	rx_head = head;													// update buffer pointer.
+
+	char queue = _serial_rx_queue();
+
+	if ((queue > RX_FLOW_UP) && (ss.flow_state == XON_SET)){		// Test buffer size against size limit.
+		ss.flow_state = SET_XOFF;									// Set the new flow control state
+		UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
+	}
 
 }
 
 // ISR Empty buffer interrupt.
 // Sends data while their is to.
 ISR(USART_UDRE_vect){
-	char tail = tx_tail;											// Temp copy to limit volatile acces.
-	UDR0 = tx_buffer[tail];											// Copy data buffer to TX data register.
-	tx_incr(tail);													// Increment buffer tail pointer.
-	tx_tail = tail;													// Copy back the temporary value to tx_tail.
 
-	if (tail == tx_head){											// if head == tail, then nothing left to send, disconenct interrupt.
+	char tail = tx_tail;											// Temp copy to limit volatile acces.	
+	// If flow control must change state, the xon/xoff state is sent before the TX buffer, that is skipped until next iteration.
+	if (ss.flow_state == SET_XOFF){
+		UDR0 = XOFF_CHAR;
+		ss.flow_state = XOFF_SET;									// Send XOFF.
+	} else if (ss.flow_state == SET_XON){
+		UDR0 = XON_CHAR;											// Send XON.
+		ss.flow_state = XON_SET;
+	} else {
+		UDR0 = tx_buffer[tail];										// Copy data buffer to TX data register.
+		tx_incr(tail);												// Increment buffer tail pointer.
+		tx_tail = tail;												// Copy back the temporary value to tx_tail.
+	}
+	if (tail == tx_head){											// if head == tail, then nothing left to send, disconnect interrupt.
 		UCSR0B &= ~(1 << UDRIE0);
 	}
+}
+
+char _serial_rx_queue(){
+	ss.queue = rx_head - rx_tail;
+	if (ss.queue < 0){
+		ss.queue += RX_BUFFER_SIZE;
+	}
+	_serial_append_value(ss.queue);
+	_serial_append_nl();
+	return ss.queue;
 }
 
 void _serial_append_string(String data){
@@ -433,5 +447,6 @@ void _serial_clear_rx_buffer(){
 void _serial_flush_rx_buffer(){
 	_serial_clear_rx_buffer();
 	to_read_flag = 0;
-
+	ss.flow_state = SET_XON;									// Set the new flow control state
+	UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
 }

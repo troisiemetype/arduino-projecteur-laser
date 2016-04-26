@@ -29,6 +29,8 @@ void driver_init(){
 	memset(&ds, 0, sizeof(ds));										// Init the driver state with 0
 	ds.zDistance = Z_DISTANCE;
 	driver_interrupt_init();
+	PORTB &= ~(1 << PB5);											// Configure pin 13 (led)
+	DDRB |= (1 << PB5);
 	serial_send_message("Driver initialisé.");
 
 }
@@ -71,9 +73,14 @@ ISR(TIMER1_COMPA_vect){
 	if ((ds.now[0] == ds.previous[0]) && (ds.now[1] == ds.previous[1])){
 		ds.moving = 0;												// records the current state
 		ds.watchdog++;												// The watchdog increments if there is no move
+		PORTB &= ~(1 << PB5);										// Shut led when no move
+
 	} else {
 		ds.moving = 1;
 		ds.watchdog = 0;											// It's set back to 0 each time there's a move
+		PORTB |= (1 << PB5);										// Lit led when moving.
+
+
 
 	}
 	if (ds.watchdog > WATCHDOG_TIMER){								// If it overflows the limit value, the laser is cut
