@@ -25,6 +25,7 @@
 
 #define CLOCK_SPEED				16000000				// Frequency of the board
 #define ISR_FREQUENCY			150						// Frequency of the interrupt
+#define BEAT_FREQUENCY			0.5						// Frequency of the heartbeat
 
 #define WATCHDOG_TIMER			100						// Number of ISR interrupts whitout move before to stop the laser
 

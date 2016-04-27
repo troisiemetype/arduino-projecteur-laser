@@ -15,7 +15,12 @@ struct driverState{
 	volatile double now[3];											// Stores the current position
 	volatile double previous[3];									// Stores the previous position
 
-	int watchdog;													// lokks after the move, to stop the laser if there's no.
+	int watchdog;													// looks after the move, to stop the laser if there's no.
+
+	unsigned int beat_count;										// Stores the number of overflow to give an heartbeat.
+	int beat_max;													// Current value, is set ot one of the two above by driver.
+	int beat_max_idle;												// Stores the value the led state should be changed when idle.
+	int beat_max_driving;											// Ditto computing and sending data to galvo drivers.
 
 	int zDistance;													// Stores the distance from projector to wall
 

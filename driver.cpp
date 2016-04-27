@@ -28,7 +28,15 @@ driverState ds;
 void driver_init(){
 	memset(&ds, 0, sizeof(ds));										// Init the driver state with 0
 	ds.zDistance = Z_DISTANCE;
+
+	ds.beat_count = 0;												// heartbeat values init.
+	ds.beat_max_idle = ISR_FREQUENCY * 6;									// Heartbeat duration.
+	ds.beat_max_driving = ISR_FREQUENCY * 3;
+
 	driver_interrupt_init();
+
+	ds.beat_max = ds.beat_max_idle;
+
 	PORTB &= ~(1 << PB5);											// Configure pin 13 (led)
 	DDRB |= (1 << PB5);
 	serial_send_message("Driver initialisé.");
@@ -50,9 +58,12 @@ void driver_interrupt_init(){
 
 	long isr_time = CLOCK_SPEED / ISR_FREQUENCY;
 
+
 	if (isr_time > 0xffff){											// verifies the prescalling factor
 		OCR1A = isr_time / 8;										// Prescale
 		TCCR1B |= (1 << CS11);
+		ds.beat_max_idle /= 8;
+		ds.beat_max_driving /= 8;
 	} else {
 		OCR1A = isr_time;											// No prescale
 		TCCR1B |= (1 << CS10);
@@ -67,18 +78,30 @@ void driver_interrupt_init(){
 
 // The ISR drives the position calculation in realtime
 ISR(TIMER1_COMPA_vect){
+	// Heartbeat calculation.
+		ds.beat_count++;
+	if (ds.beat_count >= ds.beat_max){
+		ds.beat_count = 0;
+		bool state = (PORTB & (1 << PB5));
+		if (state == 1){
+			PORTB &= ~(1 << PB5);
+		} else {
+			PORTB |= (1 << PB5);
+		}
+	}
+
 	moveBuffer *bf = planner_get_run_buffer();						// Get a pointer to the run buffer
 
 	// Verifies that there is movement
 	if ((ds.now[0] == ds.previous[0]) && (ds.now[1] == ds.previous[1])){
 		ds.moving = 0;												// records the current state
 		ds.watchdog++;												// The watchdog increments if there is no move
-		PORTB &= ~(1 << PB5);										// Shut led when no move
+		ds.beat_max = ds.beat_max_idle;								// Led blink slow when idle.
 
 	} else {
 		ds.moving = 1;
-		ds.watchdog = 0;											// It's set back to 0 each time there's a move
-		PORTB |= (1 << PB5);										// Lit led when moving.
+		ds.watchdog = 0;											// It's set back to 0 each time there's a move.
+		ds.beat_max = ds.beat_max_driving;							// Led blink faster when moving.
 
 
 
