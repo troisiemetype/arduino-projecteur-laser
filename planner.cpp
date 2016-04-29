@@ -76,7 +76,7 @@ void planner_set_next_buffer(byte buffer){
 
 // This sets up a buffer with the data received from Serial
 /* It first verifies for each parameter if it has been set or if we copy those of the previous buffer
- * then it coppies these parameters to the buffer
+ * then it copies these parameters to the buffer
  * last, it steps up the write pointer and decrease the available counter
  */
 void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mode, byte set){
@@ -97,7 +97,7 @@ void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mo
 		}
 	}
 
-	// These tests verifies if the value has been sent by the computer.
+	// These tests verify if the value has been sent by the computer.
 	// A value that hasn't been sent by the computer program should be copy for the previous position, i.e.:
 	// driver state position is the move is stopped
 	// previous buffer end position if it's populated

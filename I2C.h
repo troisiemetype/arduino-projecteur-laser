@@ -2,6 +2,7 @@
 
 // I2C.h
 // This part of the program sends and receives datas trough I2C.
+// Above setting sare intended for an AD5665R 16 bits 4 channels DAC.
 
 #ifndef I2C_H
 #define I2C_H

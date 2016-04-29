@@ -1,7 +1,7 @@
 // Arduino laser projector
 
 // driver.cpp
-/* This part of the program sends at a regular interval the positions to the galvos
+/* This part of the program compute the position at a regular interval, and send it to galvos.
    It fires an interrupt on a known interval,
    then at each interrupt it computes the new position value using what has been set in the buffer.
    Finally, these new values are sent to the external DAC trough I2C.
@@ -11,7 +11,8 @@
  * TIMER0 is a 8 bits timer. Arduino uses it for delay(), millis() and micros() functions
  * TIMER1 is a 16 bits timer, Arduino uses it for the Servo library
  * TIMER2 is a 8 bits timer, Arduino uses it for tone()
- * We used the TIMER 1 for the interrupt routine of the driver, as it's 16 bits (and so it's more "smooother" to use, and we don't care the Servo library for the projector
+ * We used the TIMER 1 for the interrupt routine of the driver, as it's 16 bits
+ * (and so it's more "smooother" to use, and we don't care the Servo library for the projector)
  */
 
 #include <Arduino.h>
@@ -30,8 +31,8 @@ void driver_init(){
 	ds.zDistance = Z_DISTANCE;
 
 	ds.beat_count = 0;												// heartbeat values init.
-	ds.beat_max_idle = ISR_FREQUENCY * 6;									// Heartbeat duration.
-	ds.beat_max_driving = ISR_FREQUENCY * 3;
+	ds.beat_max_idle = ISR_FREQUENCY / BEAT_FREQUENCY;				// Heartbeat duration.
+	ds.beat_max_driving = ds.beat_max_idle / 4;
 
 	driver_interrupt_init();
 
@@ -48,7 +49,6 @@ void driver_init(){
  * The Timer is set to CTC, that is generating an interrupt, and sets to 0 on compare match.
  * It can switch between no prescalling and a 1/8 prescalle, so the update frequency can be set between 16MHz and 30Hz
  * This could largely cover all case.
- * The channel B can be used for another feature if needed
  */
 void driver_interrupt_init(){
 	cli();															// Cancel interrupts during set up
@@ -78,6 +78,9 @@ void driver_interrupt_init(){
 
 // The ISR drives the position calculation in realtime
 ISR(TIMER1_COMPA_vect){
+	// Debug: ISR time mesure
+//	long debut = micros();
+
 	// Heartbeat calculation.
 		ds.beat_count++;
 	if (ds.beat_count >= ds.beat_max){
@@ -119,13 +122,6 @@ ISR(TIMER1_COMPA_vect){
 		return;
 	}
 
-	/*
-	if (bf->id == ds.percent_incr){									// Set a flag for sending percent each time a new percent has been insolate
-		ds.percent_incr += ds.percent;
-		ds.percent_flag == 1;
-	}
-	*/
-
 	for (int i=0; i<3; i++){										// compute each of the axis (X, Y and laser)
 		bf->now[i] += (double)bf->incr[i];							// compute the new position with the older one and the increment
 		ds.now[i] = bf->now[i];										// Records the new position
@@ -141,6 +137,9 @@ ISR(TIMER1_COMPA_vect){
 	} else {
 		bf->nowSteps++;
 	}
+
+//	_serial_append_value(micros()-debut);
+//	_serial_append_nl();
 }
 
 driverState * driver_get_ds(){
@@ -151,13 +150,6 @@ boolean driver_is_moving(){
 	return ds.moving;
 }
 
-/*
-void driver_set_size(long size){
-	ds.size = size;
-	ds.percent_incr = size/100;
-	ds.percent = ds.percent_incr;
-}
-*/
 volatile double * driver_get_position(){
 	return ds.now;
 }

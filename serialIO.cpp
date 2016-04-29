@@ -5,8 +5,9 @@
 // serial input: what is sent to the board, verifies that datas are correctly written, and populates the movement buffers
 // serial output: send back infos about position, so the program can know how much of the pattern has already be done
 
-/* the data comming from the computer are formated as Json strings, like {"ID":value, "X":value, "Y":value, "L":value, mode:value}
- * with X, Y, L as int, mode as byte
+/* the data comming from the computer are formated as Json strings,
+* like {"ID":value,"X":value,"Y":value,"L":value,"speed":value,mode:value}
+ * with ID, X, Y, L, speed as long, mode as byte
  */
 
 
@@ -17,6 +18,7 @@
 #include "driver.h"
 #include "settings.h"
 
+//This two defines are used to increment buffer pointer.
 #define rx_incr(i)	i = (i + 1)%RX_BUFFER_SIZE
 #define tx_incr(i)	i = (i + 1)%TX_BUFFER_SIZE
 
@@ -33,13 +35,10 @@ char tx_head = 0;
 volatile char tx_tail = 0;
 
 volatile bool to_read_flag = 0;
-bool to_write_flag = 0;
-bool percent_flag = 0;
-long percent_value = 0;
 
 void serial_init(){
 	memset(&ss, 0, sizeof(ss));												// Init the serial state struct
-	ss.flow_state = SET_XON;												// Enables XON
+//	ss.flow_state = SET_XON;												// Enables XON
 
 	_serial_interrupt_init();
 	
@@ -60,12 +59,6 @@ void serial_get_data(){
 //		_serial_append_value(rx_tail);
 		_serial_parse();
 	}
-
-	if (percent_flag){
-		percent_flag = 0;
-		serial_send_pair("per", percent_flag);
-	}
-
 
 }
 
@@ -116,13 +109,14 @@ void _serial_parse_json(){
 	char in_byte = 0;
 	while (rx_tail != rx_head){
 		in_byte = rx_buffer[rx_tail];
-
+/*
 		char queue = _serial_rx_queue();								// Get queue size.
 
 		if ((queue < RX_FLOW_DOWN) && (ss.flow_state == XOFF_SET)){		// Test buffer size against size limit.
 			ss.flow_state = SET_XON;									// Set the new flow control state
 			UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
 	}
+*/
 
 //		_serial_append_value(rx_head);
 //		_serial_append_value(rx_tail);
@@ -239,7 +233,9 @@ void _serial_parse_json(){
 
 		rx_incr(rx_tail);
 	}
-//	_serial_send_go();
+//	_serial_append_value(ss.id);
+//	_serial_append_nl();
+	_serial_send_go();
 	ss.parser_state = PARSING_IDLE;
 	to_read_flag =0;
 }
@@ -249,7 +245,7 @@ void _serial_record_pair(){
 	if (ss.inVar == "ID"){												// Sets the right value to the right var
 		ss.parser_data_received |= 32;									// Sets a flag.
 		ss.id = ss.inValue;												// Records value.
-		serial_send_pair("ID", ss.id);
+//		serial_send_pair("ID", ss.id);
 
 	} else if (ss.inVar == "X"){
 		ss.parser_data_received |= 16;
@@ -291,8 +287,14 @@ void _serial_record_values(){
 }
 
 // Parse a cfg command.
+// Empty for know, excpet that it reads data in the RX buffer. Otherwise program block.
 void _serial_parse_cfg(){
-
+	char in_byte = 0;
+	while (rx_tail != rx_head){
+		in_byte = rx_buffer[rx_tail];
+		rx_incr(rx_tail);
+	}
+	_serial_send_go();
 }
 
 //This sends the go signal when Serial is able to receive
@@ -302,10 +304,12 @@ void _serial_send_go(){
 	_serial_append_nl();
 }
 
+/*
 //This sends the again signal in case of lost data
 void _serial_send_again(){
 	serial_send_pair("send", 2);
 }
+*/
 
 // This function write a pair of data to Serial, formated in json
 void serial_send_pair(String name, double value){
@@ -327,17 +331,13 @@ void serial_send_message(String message){
 	_serial_append_nl();
 }
 
-// Set flag for sending percent
-void serial_percent(long id){
-	percent_flag = 1;
-	percent_value = id;
-}
 
 // This function is for debugging purpose: it prints "step" on Serial. Used to replace code breakpoints.
 void serial_step(){
 	_serial_append_string("step");
 	_serial_append_nl();
 }
+
 
 // Serila interrupt init function. Set the registers according to settings values and needs.
 void _serial_interrupt_init(){
@@ -373,14 +373,14 @@ ISR(USART_RX_vect){
 
 	rx_incr(head);													// Increment buffer pointer.
 	rx_head = head;													// update buffer pointer.
-
+/*
 	char queue = _serial_rx_queue();
 
 	if ((queue > RX_FLOW_UP) && (ss.flow_state == XON_SET)){		// Test buffer size against size limit.
 		ss.flow_state = SET_XOFF;									// Set the new flow control state
 		UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
 	}
-
+*/
 }
 
 // ISR Empty buffer interrupt.
@@ -389,13 +389,13 @@ ISR(USART_UDRE_vect){
 
 	char tail = tx_tail;											// Temp copy to limit volatile acces.	
 	// If flow control must change state, the xon/xoff state is sent before the TX buffer, that is skipped until next iteration.
-	if (ss.flow_state == SET_XOFF){
+/*	if (ss.flow_state == SET_XOFF){
 		UDR0 = XOFF_CHAR;
 		ss.flow_state = XOFF_SET;									// Send XOFF.
 	} else if (ss.flow_state == SET_XON){
 		UDR0 = XON_CHAR;											// Send XON.
 		ss.flow_state = XON_SET;
-	} else {
+	} else */{
 		UDR0 = tx_buffer[tail];										// Copy data buffer to TX data register.
 		tx_incr(tail);												// Increment buffer tail pointer.
 		tx_tail = tail;												// Copy back the temporary value to tx_tail.
@@ -405,6 +405,7 @@ ISR(USART_UDRE_vect){
 	}
 }
 
+/*
 char _serial_rx_queue(){
 	ss.queue = rx_head - rx_tail;
 	if (ss.queue < 0){
@@ -414,6 +415,7 @@ char _serial_rx_queue(){
 	_serial_append_nl();
 	return ss.queue;
 }
+*/
 
 void _serial_append_string(String data){
 	int data_length = data.length();
@@ -447,6 +449,7 @@ void _serial_clear_rx_buffer(){
 void _serial_flush_rx_buffer(){
 	_serial_clear_rx_buffer();
 	to_read_flag = 0;
-	ss.flow_state = SET_XON;									// Set the new flow control state
-	UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
+
+//	ss.flow_state = SET_XON;									// Set the new flow control state
+//	UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
 }

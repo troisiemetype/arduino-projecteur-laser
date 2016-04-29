@@ -5,7 +5,15 @@
  */
  /*
   * This is the main program that runs the projector.
-  * It does the initial setup, then runs the main loop, calling each part one after the other
+  * It does the initial setup by calling the dedicated sub-program initialize functions,
+  * then runs the main loop, calling each part one after the other.
+  * 
+  * The program is composed of these modules: 
+  * Serial: Set and use the serial UART data flow, get data from PC.
+  * Planner: populates buffer with coordinates from the data received.
+  * Driver: Use an interrupt to update position on a regular basis.
+  * I2C. Transmit position from the driver to DAC trough I2C.
+  * Settings. Store general settings. Settings that are dedicated to a sub_program are stored in thier respectives header files.
   */
 
 
@@ -17,8 +25,8 @@
 #include "planner.h"
 #include "driver.h"
 
-long temps;
-long temps_prec;
+long temps = 0;
+long temps_prec = 0;
 
 void setup(){
 
@@ -31,15 +39,16 @@ void setup(){
 	serial_send_message("Projecteur initialisé.");
 }
 
-#define DISPATCH(func) if (func == 0) return
-
 void loop(){
+	//Look for available data
 	serial_get_data();
-//	serial_write_data();
+	//Populates buffer if needed.
 	planner_plan_move();
-/*	temps = micros();
-	serial_send_pair("boucle", temps - temps_prec);
+	/*
+	temps = micros();
+	_serial_append_value(temps - temps_prec);
+	_serial_append_nl();
 	temps_prec = temps;
-	serial_send_pair("TCNT1", TCNT1);
 	*/
+	
 }

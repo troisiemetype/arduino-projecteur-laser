@@ -9,8 +9,9 @@
 #define SERIALIO_H
 
 #define RX_BUFFER_SIZE				128
-#define TX_BUFFER_SIZE				64
+#define TX_BUFFER_SIZE				128
 
+/* For Xon flow. Doesn't work.
 #define RX_FLOW_UP					64
 #define RX_FLOW_DOWN				16
 
@@ -18,7 +19,7 @@
 #define XON_SET						2
 #define SET_XOFF					3
 #define XOFF_SET					4
-
+*/
 #define XON_CHAR					17				// XON char. 0x11; ctrl+Q
 #define XOFF_CHAR					19				// XOFF char. 0x13; ctrl+S
 #define RESET_CHAR					24				// Rest char. 0x18; ctrl+X
@@ -49,22 +50,24 @@
 #define PARSING_CFG_VALUE			22
 #define PARSING_CFG_END				23
 
+// serial singleton. contains value defining the parser state,
+// stores values that have been parsed and not recorded yet.
 struct serialState{
 	char parser_state;								// Stocks the parser state. Used for knowing what to parse. See #defines above.
 	char parser_data_received;						// Data parsed mask. Set bit per bit, a bit vor a value.
 	String inVar;									// Stocks temporary var names before values are parsed and record.
 	long inValue;									// Stocks value, before they are recorded.
 
-	volatile char queue;							// Stocks the rx queue size when _serial_rx_queue is called.
+//	volatile char queue;							// Stocks the rx queue size when _serial_rx_queue is called.
 
-	long id;										// Stocks the vales received, if parsong has been successfull.
+	long id;										// Stocks the vales received, if parsing has been successfull.
 	long posX;
 	long posY;
 	long posL;
 	long speed;
 	char mode;
 
-	volatile char flow_state;						// Stocks the state of flow control. See #defines above for states.
+//	volatile char flow_state;						// Stocks the state of flow control. See #defines above for states.
 };
 
 void serial_init();
@@ -75,15 +78,13 @@ void _serial_record_pair();
 void _serial_record_values();
 void _serial_parse_cfg();
 void _serial_send_go();
-void _serial_send_again();
+//void _serial_send_again();
 void serial_send_pair(String text, double value);
 void serial_send_message(String message);
 void serial_percent(long id);
 void serial_step();
 void _serial_interrupt_init();
-char _serial_rx_incr(byte index);
-char _serial_tx_incr(byte index);
-char _serial_rx_queue();
+//char _serial_rx_queue();
 void _serial_append_string(String data);
 void _serial_append_value(long value);
 void _serial_append_nl();

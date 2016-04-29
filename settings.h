@@ -7,7 +7,7 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-#define LANGUAGE				FRANCAIS
+//#define LANGUAGE				FRANCAIS
 
 // Serial settings
 #define BAUDRATE				115200					// Defines the baudrate used for the serial
@@ -19,19 +19,21 @@
 
 #define I2C_ADDR				0x10					// This adress is for use with a AD5665 DAC
 
-#define DAC_SIZE				12						// Number of bit the DAC uses
+#define DAC_SIZE				16						// Number of bit the DAC uses
 
-#define DEFAULT_SPEED			100						// Default speed of the projecteur
+#define DEFAULT_SPEED			1000					// Default speed of the projecteur. Galvo steps/seconde. Used to avoid division / 0.
 
 #define CLOCK_SPEED				16000000				// Frequency of the board
-#define ISR_FREQUENCY			150						// Frequency of the interrupt
+#define ISR_FREQUENCY			5000					// Frequency of the interrupt
 #define BEAT_FREQUENCY			0.5						// Frequency of the heartbeat
 
 #define WATCHDOG_TIMER			100						// Number of ISR interrupts whitout move before to stop the laser
 
+/*
 #define MOVE_CARTESIAN			0						// Used to test the move type in the driver ISR
 #define MOVE_POLAR				1
+*/
 
-#define Z_DISTANCE				1000					// Distance from projector to wall, in mm
+#define Z_DISTANCE				1000					// Default distance from projector to wall, in mm
 
 #endif

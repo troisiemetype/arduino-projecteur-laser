@@ -3,6 +3,12 @@
 // I2C.cpp
 // This part of the program sends and receives datas trough I2C.
 
+/*
+ * Init function just initialize the I2C link. The DAC address and others setting bytes are given by I2C.h.
+ * I2C_write sends new data for a channel (X, Y or L) to the DAC board.
+ * Then I2C_update can update all the channels at once.
+ */
+
 #include <Arduino.h>
 
 #include "I2C.h"
@@ -39,6 +45,7 @@ void I2C_init(){
 
 }
 
+// This writes a new value to one channel of the DAC.
 void I2C_write(char axe, int pos){
 
 	switch (axe){
@@ -65,6 +72,7 @@ void I2C_write(char axe, int pos){
 	Wire.endTransmission();
 }
 
+// This updates all the DAC channels at once.
 void I2C_update(){
 	_commandByte = AD5665_UPDATE_N << 3;
 	_commandByte += AD5665_DAC_ALL;
