@@ -42,7 +42,7 @@ void I2C_init(){
 
 	Wire.begin();												// Opens the connection
 	_I2C_address = I2C_ADDR;									// Sets the addres of the DAC
-	_I2C_address = _I2C_address << 1;							// Shift the adress 1bit left to be in write mode (never need read mode)
+	_I2C_address = _I2C_address >> 1;							// Shift the adress 1bit right to be in write mode (never need read mode)
 
 	_commandByte = AD5665_POWER << 3;							// Sets the power mode
 	Wire.beginTransmission(_I2C_address);
@@ -79,23 +79,23 @@ void I2C_write(char axe, int pos){
 			return;
 	}
 
-	_commandByte = AD5665_WRITE_N << 3;								// sets the command byte and bitshift it
-	_commandByte += _addressByte;									// Adds the address byte
+	_commandByte = (AD5665_WRITE_N << 3);							// sets the command byte and bitshift it
+	_commandByte |= _addressByte;									// Adds the address byte
 
 	Wire.beginTransmission(_I2C_address);							// Start the transmission to the I2C slave. Send address + write
 	Wire.write(_commandByte);										// sends the command byte and the address byte
 	Wire.write(pos >> 4);
 	Wire.write(pos);
-	Wire.endTransmission();
+	_serial_append_value(Wire.endTransmission());
 }
 
 // This updates all the DAC channels at once.
 void I2C_update(){
-	_commandByte = AD5665_UPDATE_N << 3;
-	_commandByte += AD5665_DAC_ALL;
+	_commandByte = (AD5665_UPDATE_N << 3);
+	_commandByte |= AD5665_DAC_ALL;
 	Wire.beginTransmission(_I2C_address);							// Start the transmission to the I2C slave. Send address + write
 	Wire.write(_commandByte);										// sends the command byte and the address byte
 	Wire.write(0);
 	Wire.write(0);
-	Wire.endTransmission();
+	_serial_append_value(Wire.endTransmission());
 }

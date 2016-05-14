@@ -34,7 +34,7 @@
 #define Y_I2C_ADDR				0x63
 #define L_I2C_ADDR				0x64
 
-#define I2C_ADDR				0x10					// This adress is for use with a AD5665 DAC
+#define I2C_ADDR				0x20					// This adress is for use with a AD5665 DAC in adress mode
 
 #define DAC_SIZE				16						// Number of bit the DAC uses
 
