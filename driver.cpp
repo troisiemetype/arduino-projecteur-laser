@@ -143,7 +143,12 @@ ISR(TIMER1_COMPA_vect){
 		bf->now[i] += (double)bf->incr[i];							// compute the new position with the older one and the increment
 		ds.now[i] = bf->now[i];										// Records the new position
 	}
-	//updates I2C
+
+	I2C_write('X', bf->now[0]);
+	I2C_write('Y', bf->now[1]);
+	I2C_update();
+	
+
 
 	if (bf->nowSteps >= bf->steps-1){								// If the number of steps of this move has been reach,
 

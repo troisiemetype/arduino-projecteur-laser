@@ -51,7 +51,7 @@ void I2C_init(){
 	Wire.write(3);
 	Wire.endTransmission();
 */
-	_commandByte = AD5665_INTERNAL_REF << 3;							// Sets the power mode
+	_commandByte = AD5665_INTERNAL_REF << 3;					// Sets the power mode
 	Wire.beginTransmission(_I2C_address);
 	Wire.write(_commandByte);												
 	Wire.write(0);
@@ -87,8 +87,6 @@ void I2C_write(char axe, int pos){
 
 	_commandByte = (AD5665_WRITE_N << 3);							// sets the command byte and bitshift it
 	_commandByte |= _addressByte;									// Adds the address byte
-	_serial_append_value(_commandByte);
-	_serial_append_nl();
 
 	Wire.beginTransmission(_I2C_address);							// Start the transmission to the I2C slave. Send address + write
 	Wire.write(_commandByte);										// sends the command byte and the address byte
@@ -101,6 +99,7 @@ void I2C_write(char axe, int pos){
 void I2C_update(){
 	_commandByte = (AD5665_UPDATE_N << 3);
 	_commandByte |= AD5665_DAC_ALL;
+
 	Wire.beginTransmission(_I2C_address);							// Start the transmission to the I2C slave. Send address + write
 	Wire.write(_commandByte);										// sends the command byte and the address byte
 	Wire.write(0xFF);
