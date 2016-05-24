@@ -30,6 +30,7 @@
  * TIMER2 is a 8 bits timer, Arduino uses it for tone()
  * We used the TIMER 1 for the interrupt routine of the driver, as it's 16 bits
  * (and so it's more "smooother" to use, and we don't care the Servo library for the projector)
+ * We also use TIMER 2 to generate the PWM output of the laser intensity.
  */
 
 #include <Arduino.h>
@@ -51,25 +52,30 @@ void driver_init(){
 	ds.beat_max_idle = ISR_FREQUENCY / BEAT_FREQUENCY;				// Heartbeat duration.
 	ds.beat_max_driving = ds.beat_max_idle / 4;
 
-	driver_interrupt_init();
-
 	ds.beat_max = ds.beat_max_idle;
 
-	PORTB &= ~(1 << PB5);											// Configure pin 13 (led)
-	DDRB |= (1 << PB5);
+	DDRB |= (1 << PB3) | (1 << PB5);								// Set pins 11 (laser) and 13 (led) as outputs
+	PORTB &= ~(1 << PB5);											// Unset pin 13
+	
+	driver_interrupt_init();
+
 	serial_send_message("Driver initialisé.");
 
 }
 
-// This function set up the TIMER 1
+// This function set up the TIMER 1 and TIMER 2
 /* Is sets up the TIMER 1 according to the settings (IC frequency and wanted update move frequency)
  * The Timer is set to CTC, that is generating an interrupt, and sets to 0 on compare match.
  * It can switch between no prescalling and a 1/8 prescalle, so the update frequency can be set between 16MHz and 30Hz
  * This could largely cover all case.
+ *
+ * 
  */
 void driver_interrupt_init(){
 	cli();															// Cancel interrupts during set up
-	TCCR1A = 0;														// Initialisatin registers
+
+	// Setup for TIMER 1
+	TCCR1A = 0;														// Initialisation registers
 	TCCR1B = 0;
 	TCNT1 = 0;
 
@@ -88,6 +94,17 @@ void driver_interrupt_init(){
 
 	TCCR1B |= (1 << WGM12);											// Set TIMER 1 on CTC mode
 	TIMSK1 |= (1 << OCIE1A);										// Enables output compare A
+
+	// Setup for TIMER 2
+	
+	TCCR2A = 0;														// Initialisation registers
+	TCCR2B = 0;
+	TCNT2 = 0;
+	OCR2A = 0;
+	
+	TCCR2A |= (1 << COM2A1) | (1 << WGM21) | (1 << WGM20);			// Clear OC2A on compare match, fast PWM
+	TCCR2B |= (1 << CS22) | (1 << CS21);							// prescaller 256
+	
 
 	sei();															// Enable interrupt again
 
@@ -144,12 +161,8 @@ ISR(TIMER1_COMPA_vect){
 		ds.now[i] = bf->now[i];										// Records the new position
 	}
 
-	I2C_write('X', bf->now[0]);
-	I2C_write('Y', bf->now[1]);
-	I2C_update();
+	ds.update = 1;													// Set a flag to update pos. I2C cannot be called from an ISR.
 	
-
-
 	if (bf->nowSteps >= bf->steps-1){								// If the number of steps of this move has been reach,
 
 		for (int i=0; i<3; i++){									// Copy the goal position to the driverState
@@ -163,6 +176,26 @@ ISR(TIMER1_COMPA_vect){
 
 //	_serial_append_value(micros()-debut);
 //	_serial_append_nl();
+}
+
+void driver_update_pos(){
+	if (ds.update == 0){
+		return;
+	}
+	//test X value for modification.
+	if (ds.now[0] != ds.previous[0]){
+		I2C_write('X', ds.now[0]);
+	}
+	//test Y value for modification.
+	if (ds.now[1] != ds.previous[1]){
+		I2C_write('Y', ds.now[1]);
+	}
+	I2C_update();
+	ds.update = 0;
+
+//	OCR2A = ds.now[2];
+	OCR2A = 10;												// Temp value for laser testing
+
 }
 
 driverState * driver_get_ds(){

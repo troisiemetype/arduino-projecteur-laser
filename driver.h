@@ -41,11 +41,14 @@ struct driverState{
 
 	int zDistance;													// Stores the distance from projector to wall
 
-	volatile byte moving;											// Knows if it's moving or not
+	volatile char moving;											// Knows if it's moving or not
+
+	volatile bool update;
 };
 
 void driver_init();
 void driver_interrupt_init();
+void driver_update_pos();
 driverState * driver_get_ds();
 boolean driver_is_moving();
 volatile double * driver_get_position();

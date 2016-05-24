@@ -57,6 +57,15 @@ void serial_init(){
 	memset(&ss, 0, sizeof(ss));												// Init the serial state struct
 //	ss.flow_state = SET_XON;												// Enables XON
 
+	//Initialization of RW and TX buffer.
+	for (int i=0; i<RX_BUFFER_SIZE; i++){
+		rx_buffer[i] = 0;
+	}
+
+	for (int i=0; i<TX_BUFFER_SIZE; i++){
+		tx_buffer[i] = 0;
+	}
+
 	_serial_interrupt_init();
 	
 	serial_send_message("Liaison série initialisée.");
@@ -72,6 +81,7 @@ void serial_get_data(){
 	}
 
 	if (to_read_flag){
+//		_serial_append_string("-to read-");
 //		_serial_append_value(rx_head);
 //		_serial_append_value(rx_tail);
 		_serial_parse();
@@ -356,13 +366,13 @@ void serial_step(){
 }
 
 
-// Serila interrupt init function. Set the registers according to settings values and needs.
+// Serial interrupt init function. Set the registers according to settings values and needs.
 void _serial_interrupt_init(){
-	unsigned int ubr = CLOCK_SPEED/16/(BAUDRATE - 1);
-//	Serial.print(tra, DEC);
+	unsigned int ubr = CLOCK_SPEED/8/BAUDRATE-1;
+	UCSR0A |= (1 << U2X0);
 	cli();
 
-	UBRR0H = (ubr>>8);												// Set the baudrate register, high first, then low.
+	UBRR0H = (ubr>>8);												// Set the baudrate register, high byte first, then low.
 	UBRR0L = ubr;
 
 	// UCSR0A is not touched: it contains flags.

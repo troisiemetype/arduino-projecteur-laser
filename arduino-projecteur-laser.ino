@@ -31,7 +31,7 @@
   * Planner: populates buffer with coordinates from the data received.
   * Driver: Use an interrupt to update position on a regular basis.
   * I2C. Transmit position from the driver to DAC trough I2C.
-  * Settings. Store general settings. Settings that are dedicated to a sub_program are stored in thier respectives header files.
+  * Settings. Store general settings. Settings that are dedicated to a sub_program are stored in their respectives header files.
   */
 
 
@@ -62,6 +62,8 @@ void loop(){
 	serial_get_data();
 	//Populates buffer if needed.
 	planner_plan_move();
+	//send I2C if needed
+	driver_update_pos();
 	/*
 	temps = micros();
 	_serial_append_value(temps - temps_prec);

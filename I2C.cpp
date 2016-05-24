@@ -31,6 +31,7 @@
 #include "I2C.h"
 #include "settings.h"
 #include "serialIO.h"
+#include "driver.h"
 #include <Wire.h>
 
 char _I2C_address;
@@ -41,6 +42,7 @@ char _addressByte;
 void I2C_init(){
 
 	Wire.begin();												// Opens the connection
+	Wire.setClock(400000L);										// Modifies the clock speed
 	_I2C_address = I2C_ADDR;									// Sets the addres of the DAC
 	_I2C_address = _I2C_address >> 1;							// Shift the adress 1 bit right to be in write mode (never need read mode)
 
