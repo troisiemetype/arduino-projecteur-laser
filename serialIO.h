@@ -46,21 +46,17 @@
 
 //define parser states / error
 #define PARSING_IDLE				0
-#define PARSING_JSON_START			1
-#define PARSING_JSON_VAR			2
-#define PARSING_JSON_VAR_OK			3
-#define PARSING_JSON_SEMI			4
-#define PARSING_JSON_VALUE_START	5
-#define PARSING_JSON_VALUE			6
-#define PARSING_JSON_VALUE_OK		7
-#define PARSING_JSON_PAIR			8
-#define PARSING_JSON_END			9
-#define PARSING_ERROR_INPUT			10
-#define PARSING_JSON_ERROR_START	11
-#define PARSING_JSON_ERROR_VAR		12
-#define PARSING_JSON_ERROR_VALUE	13
-#define PARSING_JSON_ERROR_PAIR		14
-#define PARSING_JSON_ERROR			15
+#define PARSING_VAR					1
+#define PARSING_VAR_OK				2
+#define PARSING_VALUE				3
+#define PARSING_VALUE_OK			4
+#define PARSING_PAIR				5
+#define PARSING_ERROR_INPUT			6
+#define PARSING_ERROR_START			7
+#define PARSING_ERROR_VAR			8
+#define PARSING_ERROR_VALUE			9
+#define PARSING_ERROR_PAIR			10
+#define PARSING_ERROR				11
 
 #define PARSING_CFG_START			20
 #define PARSING_CFG_VAR				21
@@ -90,7 +86,7 @@ struct serialState{
 void serial_init();
 void serial_get_data();
 void _serial_parse();
-void _serial_parse_json();
+void _serial_parse_data();
 void _serial_record_pair();
 void _serial_record_values();
 void _serial_parse_cfg();

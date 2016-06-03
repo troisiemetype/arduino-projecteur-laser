@@ -22,9 +22,13 @@
 // serial input: what is sent to the board, verifies that datas are correctly written, and populates the movement buffers
 // serial output: send back infos about position, so the program can know how much of the pattern has already be done
 
-/* the data comming from the computer are formated as Json strings,
-* like {"ID":value,"X":value,"Y":value,"L":value,"speed":value,mode:value}
- * with ID, X, Y, L, speed as long, mode as byte
+/* the data comming from the computer are formated as follow:
+ * I40X248Y-120L34M2S56
+ * or
+ * I40 X248 Y-120 L34 M2 S56
+ * with I, X, Y, L, S as long, M as byte.
+ * There can be a separation character between var/value pair, it will be split when parsing,
+ * but every character cause loosing some speed...
  */
 
 
@@ -89,19 +93,17 @@ void serial_get_data(){
 
 }
 
-// This function is the entrance of a new string. It sets the parser_state for json or info
+// This function is the entrance of a new string. It sets the parser_state for info or data
 // If the new string starts by anything else than start charcaters, it's discarded.
 void _serial_parse(){
-	if (rx_buffer[rx_tail] == '{'){
-		_serial_parse_json();
-	} else if (rx_buffer[rx_tail] == '$'){
+	if (rx_buffer[rx_tail] == '$'){
 		_serial_parse_cfg();
 	} else {
-		_serial_flush_rx_buffer();
+		_serial_parse_data();
 	}
 }
 
-/* this function parse the json string it receives
+/* this function parse the data string it receives
  * The json string must formed like that:
  * {"var1":value1,"var2":value2,...,"varN":valueN}, without spaces between values.
  * The loop turns while there is available data to read
@@ -131,9 +133,10 @@ void _serial_parse(){
  * Last, if the state is PARSING_JSON_END, then it means the parsing was without problem.
  * Then it calls _serial_record_values() to populates the planner buffer.
  */
-void _serial_parse_json(){
+void _serial_parse_data(){
 	bool is_neg = false;
 	char in_byte = 0;
+	ss.parser_state = PARSING_VAR;
 	while (rx_tail != rx_head){
 		in_byte = rx_buffer[rx_tail];
 /*
@@ -148,117 +151,45 @@ void _serial_parse_json(){
 //		_serial_append_value(rx_head);
 //		_serial_append_value(rx_tail);
 
-		if (ss.parser_state == PARSING_IDLE){
-			if (in_byte == '{'){
-				ss.parser_state = PARSING_JSON_START;
-//				_serial_append_string("json start");
-
-			} else {
-				ss.parser_state = PARSING_JSON_ERROR_START;
-				_serial_flush_rx_buffer();
-//				_serial_append_string("json error start");
-				break;
-			}
-
-		} else if (ss.parser_state == PARSING_JSON_START){
-			if (in_byte == '"'){
-				ss.parser_state = PARSING_JSON_VAR;
-				ss.inVar = "";
-//				_serial_append_string("json var");
-
-			} else {
-				ss.parser_state = PARSING_JSON_ERROR_VAR;
-				_serial_flush_rx_buffer();
-//				_serial_append_string("json error var");
-				break;
-			}
-
-		} else if (ss.parser_state == PARSING_JSON_VAR){
+		if (ss.parser_state == PARSING_VAR){
 			if ((in_byte >= 'a' && in_byte <= 'z') || (in_byte >= 'A' && in_byte <= 'Z')){
-				ss.inVar += in_byte;
-//				_serial_append_string(ss.inVar);
-
-			} else if (in_byte = '"'){
-				ss.parser_state = PARSING_JSON_VAR_OK;
-//				_serial_append_string("json var ok");
-
-			} else {
-				ss.parser_state = PARSING_JSON_ERROR_VAR;
-				_serial_flush_rx_buffer();
-//				_serial_append_string("json error var");
-				break;
-			}
-			
-		} else if (ss.parser_state == PARSING_JSON_VAR_OK){
-			if (in_byte == ':'){
-				ss.parser_state = PARSING_JSON_VALUE_START;
-//				_serial_append_string("json value start");
+				if (in_byte >= 'a' && in_byte <= 'z'){
+					in_byte -= 32;
+				}
+				ss.inVar = in_byte;
 				ss.inValue = 0;
 				is_neg = 0;
-
-			} else {
-				ss.parser_state = PARSING_JSON_ERROR_PAIR;
-				_serial_flush_rx_buffer();
-//				_serial_append_string("json error pair");
-				break;
+				ss.parser_state = PARSING_VAR_OK;
+//					_serial_append_string(ss.inVar);
 			}
-			
-		} else if (ss.parser_state == PARSING_JSON_VALUE_START){
-			if (in_byte == '-'){
-				is_neg = 1;
-//				_serial_append_string("is neg");
-			} else if (in_byte >= '0' && in_byte <= '9'){
-				ss.inValue *= 10;
-				ss.inValue += (in_byte - 48);
-//				_serial_append_value(ss.inValue);
-			} else {
-				ss.parser_state = PARSING_JSON_ERROR_VALUE;
-				_serial_flush_rx_buffer();
-//				_serial_append_string("json error value start");
-				break;
-			}
-			ss.parser_state = PARSING_JSON_VALUE;
+			rx_incr(rx_tail);
 
-		} else if (ss.parser_state == PARSING_JSON_VALUE){
+		} else if (ss.parser_state == PARSING_VAR_OK){
+			ss.parser_state = PARSING_VALUE;
+
+		} else if (ss.parser_state == PARSING_VALUE){
 			if (in_byte >= '0' && in_byte <= '9'){
 				ss.inValue *= 10;
 				ss.inValue += (in_byte - 48);
+				rx_incr(rx_tail);
 //				_serial_append_value(ss.inValue);
-
-			} else if (in_byte == ','){
-				ss.parser_state = PARSING_JSON_START;
+			} else if (in_byte =='-'){
+				is_neg = 1;
+				rx_incr(rx_tail);
+//				_serial_append_string("is neg");
+			} else if ((in_byte >= 'a' && in_byte <= 'z') || (in_byte >= 'A' && in_byte <= 'Z')){
 				if (is_neg == 1){
 					ss.inValue = -ss.inValue;
 				}
 				_serial_record_pair();
+				ss.parser_state = PARSING_VAR;
 //				_serial_append_string("json start");
 
-			} else if (in_byte == '}'){
-				ss.parser_state = PARSING_JSON_END;
-				if (is_neg == 1){
-					ss.inValue = -ss.inValue;
-				}
-				_serial_record_pair();
-//				_serial_append_string("json end");
-
 			} else {
-				ss.parser_state = PARSING_JSON_ERROR_VALUE;
-				_serial_flush_rx_buffer();
-//				_serial_append_string("json error value");
-				break;
+				rx_incr(rx_tail);
 			}
-			
-		} else if (ss.parser_state == PARSING_JSON_END){
-			_serial_record_values();
-			rx_tail = rx_head;
-			ss.parser_state = PARSING_IDLE;
-			break;
-		} else {
-			_serial_flush_rx_buffer();
-			break;
-		}
 
-		rx_incr(rx_tail);
+		}
 	}
 //	_serial_append_value(ss.id);
 //	_serial_append_nl();
@@ -269,7 +200,7 @@ void _serial_parse_json(){
 
 void _serial_record_pair(){
 
-	if (ss.inVar == "ID"){												// Sets the right value to the right var
+	if (ss.inVar == "I"){												// Sets the right value to the right var
 		ss.parser_data_received |= 32;									// Sets a flag.
 		ss.id = ss.inValue;												// Records value.
 //		serial_send_pair("ID", ss.id);
@@ -289,12 +220,12 @@ void _serial_record_pair(){
 		ss.posL = ss.inValue;
 //		serial_send_pair("L", ss.posL);
 
-	} else if (ss.inVar == "speed"){
+	} else if (ss.inVar == "S"){
 		ss.parser_data_received |= 2;
 		ss.speed = ss.inValue;
 //		serial_send_pair("speed", ss.speed);
 
-	} else if (ss.inVar == "mode"){
+	} else if (ss.inVar == "M"){
 		ss.parser_data_received |= 1;
 		ss.mode = ss.inValue;
 //		serial_send_pair("mode", ss.mode);
