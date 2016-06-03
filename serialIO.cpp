@@ -104,31 +104,24 @@ void _serial_parse(){
 }
 
 /* this function parse the data string it receives
- * The json string must formed like that:
- * {"var1":value1,"var2":value2,...,"varN":valueN}, without spaces between values.
+ * The string must formed like that:
+ * I1X23Y45...
+ * Each var (one letter) must be followed by its value.
  * The loop turns while there is available data to read
- * The function is called b ythe serial parser above, when a "{" is detected.
+ * The function is called by the serial parser above.
  * It's driven by parser states. For each state we should get precise chars.
  * If these chars are found, parser goes to th next state, and test chars again.
  * A normal loop should be:
- * PARSING_IDLE						We have just received a new data string. Waiting for opening brace
+ * PARSING_IDLE						We have just received a new data string.
  *
- * PARSING_JSON_START 				looking for quote mark to start parsing var name
+ * PARSING_VAR 			 			looking for alpha chars a-z, A-Z.
  *
- * PARSING_JSON_VAR 				looking for alpha chars a-z, A-Z, or quote mark to end parsing var name.
+ * PARSING_JSON_VAR_OK 				var was OK.
  *
- * PARSING_JSON_VAR_OK 				looking for semicolon.
- *
- * PARSING_JSON_VALUE_START			looking for minus sign or number 0-9.
- *
- * PARSING_JSON_VALUE 				looking for number 0-9, a comma to start a new var/value pair, or a closing brace to end json string.
- *
- * possible loop to PARSING_JSON_START for new var/value pair.
- *
- * PARSING_JSON_END					set up rx_buffer and state for next data string.
+ * PARSING_JSON_VALUE 				looking for number 0-9, a minus sign if number is negative, or char a-z, A-Z if new pair.
+ *									if char a-z, A-Z, record the pair before to parse the next one.
  *
  * On each step, the next data char is tested against what it should be. If not found, their is an error and the loop stops.
- * On each end of the loop, the buffer pointer rx_tail is incremented for the next iteration.
  * If a pair (var + value) is obtained, _serial_record_pair is called, whiwh stores the value in the serial singleton and sets a flag.
  * Last, if the state is PARSING_JSON_END, then it means the parsing was without problem.
  * Then it calls _serial_record_values() to populates the planner buffer.
@@ -193,6 +186,8 @@ void _serial_parse_data(){
 	}
 //	_serial_append_value(ss.id);
 //	_serial_append_nl();
+	_serial_record_values();
+	_serial_flush_rx_buffer()
 	_serial_send_go();
 	ss.parser_state = PARSING_IDLE;
 	to_read_flag =0;
