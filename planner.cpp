@@ -190,7 +190,7 @@ void planner_plan_move(){
 			bf->speed = DEFAULT_SPEED;
 		}
 
-		bf->steps = abs(bf->deltaTotal / bf->speed) * ISR_FREQUENCY;		// Compute the number of steps according to the route, speed and ISR
+		bf->steps = abs((double)bf->deltaTotal / (double)bf->speed) * ISR_FREQUENCY;		// Compute the number of steps according to the route, speed and ISR
 //		serial_send_pair("steps", bf->steps);
 
 		if (bf->steps == 0){												// Steps cannot be 0. If it is, sets it to 1

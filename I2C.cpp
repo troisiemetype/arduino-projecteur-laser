@@ -43,8 +43,8 @@ void I2C_init(){
 
 	Wire.begin();												// Opens the connection
 	Wire.setClock(400000L);										// Modifies the clock speed
-	_I2C_address = I2C_ADDR;									// Sets the addres of the DAC
-	_I2C_address = _I2C_address >> 1;							// Shift the adress 1 bit right to be in write mode (never need read mode)
+	_I2C_address = I2C_ADDR;									// Sets the address of the DAC
+	_I2C_address = _I2C_address >> 1;							// Shift the address 1 bit right to be in write mode (never need read mode)
 
 /*	_commandByte = AD5665_POWER << 3;							// Sets the power mode
 	Wire.beginTransmission(_I2C_address);

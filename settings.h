@@ -41,7 +41,7 @@
 #define DEFAULT_SPEED			1000					// Default speed of the projecteur. Galvo steps/seconde. Used to avoid division / 0.
 
 #define CLOCK_SPEED				16000000				// Frequency of the board
-#define ISR_FREQUENCY			500						// Frequency of the interrupt
+#define ISR_FREQUENCY			10000					// Frequency of the interrupt
 #define BEAT_FREQUENCY			0.5						// Frequency of the heartbeat
 
 #define WATCHDOG_TIMER			100						// Number of ISR interrupts whitout move before to stop the laser

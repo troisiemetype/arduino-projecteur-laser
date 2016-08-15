@@ -101,9 +101,12 @@ void driver_interrupt_init(){
 	TCCR2B = 0;
 	TCNT2 = 0;
 	OCR2A = 0;
-	
-	TCCR2A |= (1 << COM2A1) | (1 << WGM21) | (1 << WGM20);			// Clear OC2A on compare match, fast PWM
-	TCCR2B |= (1 << CS22) | (1 << CS21);							// prescaller 256
+// Problem with fast PWM: When OCR2A is set to 0, there is a narrow spike at the timer overflow,
+// so the output is never totally shut, that causes the laser to be always on.
+//	TCCR2A |= (1 << COM2A1) | (1 << WGM21) | (1 << WGM20);			// Clear OC2A on compare match, fast PWM
+//	TCCR2B |= (1 << CS22) | (1 << CS21);							// prescaller 256
+	TCCR2A |= (1 << COM2A1) | (1 << WGM20);							// Clear OC2A on up-counting compare match, phase correct PWM
+	TCCR2B |= (1 << CS21);											// no prescaller
 	
 
 	sei();															// Enable interrupt again
@@ -145,6 +148,7 @@ ISR(TIMER1_COMPA_vect){
 	}
 	if (ds.watchdog > WATCHDOG_TIMER){								// If it overflows the limit value, the laser is cut
 		ds.now[2] = 0;												// It's a security feature for it doesn't burn anything by staying immobile
+		ds.update = 1;
 	}
 
 	for (int i=0; i<3; i++){										// records the last position before to update it
@@ -184,17 +188,19 @@ void driver_update_pos(){
 	}
 	//test X value for modification.
 	if (ds.now[0] != ds.previous[0]){
-		I2C_write('X', ds.now[0]);
+		unsigned int pos = ds.now[0];
+		I2C_write('X', pos);
 	}
 	//test Y value for modification.
 	if (ds.now[1] != ds.previous[1]){
-		I2C_write('Y', ds.now[1]);
+		unsigned int pos = ds.now[1];
+		I2C_write('Y', pos);
 	}
 	I2C_update();
 	ds.update = 0;
 
-//	OCR2A = ds.now[2];
-	OCR2A = 10;												// Temp value for laser testing
+	OCR2A = ds.now[2];
+//	OCR2A = 10;												// Temp value for laser testing
 
 }
 

@@ -165,21 +165,22 @@ void _serial_parse_data(){
 				ss.inValue *= 10;
 				ss.inValue += (in_byte - 48);
 				rx_incr(rx_tail);
-//				_serial_append_value(ss.inValue);
 			} else if (in_byte =='-'){
 				is_neg = 1;
 				rx_incr(rx_tail);
 //				_serial_append_string("is neg");
-			} else if ((in_byte >= 'a' && in_byte <= 'z') || (in_byte >= 'A' && in_byte <= 'Z')){
+			} else {
 				if (is_neg == 1){
 					ss.inValue = -ss.inValue;
 				}
 				_serial_record_pair();
-				ss.parser_state = PARSING_VAR;
-//				_serial_append_string("json start");
-
-			} else {
-				rx_incr(rx_tail);
+//				_serial_append_value(ss.inValue);
+				if ((in_byte >= 'a' && in_byte <= 'z') || (in_byte >= 'A' && in_byte <= 'Z')){
+					ss.parser_state = PARSING_VAR;
+//					_serial_append_string("parsing var");
+				} else {
+					rx_incr(rx_tail);
+				}
 			}
 
 		}
@@ -187,7 +188,7 @@ void _serial_parse_data(){
 //	_serial_append_value(ss.id);
 //	_serial_append_nl();
 	_serial_record_values();
-	_serial_flush_rx_buffer()
+	_serial_flush_rx_buffer();
 	_serial_send_go();
 	ss.parser_state = PARSING_IDLE;
 	to_read_flag =0;
