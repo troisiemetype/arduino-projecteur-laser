@@ -189,7 +189,7 @@ void _serial_parse_data(){
 //	_serial_append_nl();
 	_serial_record_values();
 	_serial_flush_rx_buffer();
-	_serial_send_go();
+//	_serial_send_go();
 	ss.parser_state = PARSING_IDLE;
 	to_read_flag =0;
 }
@@ -327,14 +327,14 @@ ISR(USART_RX_vect){
 
 	rx_incr(head);													// Increment buffer pointer.
 	rx_head = head;													// update buffer pointer.
-/*
+
 	char queue = _serial_rx_queue();
 
 	if ((queue > RX_FLOW_UP) && (ss.flow_state == XON_SET)){		// Test buffer size against size limit.
 		ss.flow_state = SET_XOFF;									// Set the new flow control state
 		UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
 	}
-*/
+
 }
 
 // ISR Empty buffer interrupt.

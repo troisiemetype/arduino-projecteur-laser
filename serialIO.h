@@ -30,7 +30,7 @@
 
 // For Xon flow.
 #define RX_FLOW_UP					64
-#define RX_FLOW_DOWN				16
+#define RX_FLOW_DOWN				30
 
 #define SET_XON						1
 #define XON_SET						2
