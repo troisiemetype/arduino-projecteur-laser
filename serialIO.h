@@ -28,7 +28,7 @@
 #define RX_BUFFER_SIZE				128
 #define TX_BUFFER_SIZE				128
 
-/* For Xon flow. Doesn't work.
+// For Xon flow.
 #define RX_FLOW_UP					64
 #define RX_FLOW_DOWN				16
 
@@ -36,7 +36,7 @@
 #define XON_SET						2
 #define SET_XOFF					3
 #define XOFF_SET					4
-*/
+
 #define XON_CHAR					17				// XON char. 0x11; ctrl+Q
 #define XOFF_CHAR					19				// XOFF char. 0x13; ctrl+S
 #define RESET_CHAR					24				// Rest char. 0x18; ctrl+X
@@ -71,7 +71,7 @@ struct serialState{
 	String inVar;									// Stocks temporary var names before values are parsed and record.
 	long inValue;									// Stocks value, before they are recorded.
 
-//	volatile char queue;							// Stocks the rx queue size when _serial_rx_queue is called.
+	volatile char queue;							// Stocks the rx queue size when _serial_rx_queue is called.
 
 	long id;										// Stocks the vales received, if parsing has been successfull.
 	long posX;
@@ -80,7 +80,7 @@ struct serialState{
 	long speed;
 	char mode;
 
-//	volatile char flow_state;						// Stocks the state of flow control. See #defines above for states.
+	volatile char flow_state;						// Stocks the state of flow control. See #defines above for states.
 };
 
 void serial_init();
@@ -97,9 +97,9 @@ void serial_send_message(String message);
 void serial_percent(long id);
 void serial_step();
 void _serial_interrupt_init();
-//char _serial_rx_queue();
+char _serial_rx_queue();
 void _serial_append_string(String data);
-void _serial_append_value(long value);
+void _serial_append_value(double value);
 void _serial_append_nl();
 void _serial_append_byte(char data);
 void _serial_clear_rx_buffer();

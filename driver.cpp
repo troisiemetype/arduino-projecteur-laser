@@ -188,12 +188,12 @@ void driver_update_pos(){
 	}
 	//test X value for modification.
 	if (ds.now[0] != ds.previous[0]){
-		unsigned int pos = ds.now[0];
+		unsigned int pos = ds.now[0] + DRIVER_OFFSET;
 		I2C_write('X', pos);
 	}
 	//test Y value for modification.
 	if (ds.now[1] != ds.previous[1]){
-		unsigned int pos = ds.now[1];
+		unsigned int pos = ds.now[1] + DRIVER_OFFSET;
 		I2C_write('Y', pos);
 	}
 	I2C_update();

@@ -27,6 +27,8 @@
 #ifndef DRIVER_H
 #define DRIVER_H
 
+#define DRIVER_OFFSET	32768
+
 // This structure stores the state of the Driver
 struct driverState{
 	volatile double now[3];											// Stores the current position

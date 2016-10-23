@@ -116,7 +116,7 @@ void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mo
 
 	// These tests verify if the value has been sent by the computer.
 	// A value that hasn't been sent by the computer program should be copy for the previous position, i.e.:
-	// driver state position is the move is stopped
+	// driver state position if the move is stopped
 	// previous buffer end position if it's populated
 	// So we just copy the values that have been set above
 	if (!(set & 16)){
@@ -135,7 +135,6 @@ void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mo
 		mode = pv->mode;
 	}
 
-	bf->active = 1;															// active = 1 tells that values have been load in the buffer
 	bf->id = id;															// Copies the values to the buffer
 	bf->pos[0] = posX;
 	bf->pos[1] = posY;
@@ -143,7 +142,7 @@ void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mo
 	bf->speed = speed;
 	bf->mode = mode;
 	bf->compute = 0;														// Compute = 0 says that the buffer needs to be planned
-
+	bf->active = 1;															// active = 1 tells that values have been load in the buffer
 	// steps up the write pointer.
 	planner_set_next_buffer(0);
 	mbp.available--;
@@ -203,6 +202,12 @@ void planner_plan_move(){
 //		serial_send_pair("incrX",bf->incr[0]);
 //		serial_send_pair("incrY",bf->incr[1]);
 //		serial_send_pair("incrL",bf->incr[2]);
+	} else {
+		//If the move type is fast move, the increment equals the new pos.
+		for (int i = 0; i<3; i++){
+			bf->steps = 1;
+			bf->incr[i] = bf->pos[i] - bf->pv->pos[i];
+		}
 	}
 
 	bf->compute = 1;														// The buffer is marked as having been compute

@@ -59,9 +59,9 @@ volatile bool to_read_flag = 0;
 
 void serial_init(){
 	memset(&ss, 0, sizeof(ss));												// Init the serial state struct
-//	ss.flow_state = SET_XON;												// Enables XON
+	ss.flow_state = SET_XON;												// Enables XON
 
-	//Initialization of RW and TX buffer.
+	//Initialization of RX and TX buffer.
 	for (int i=0; i<RX_BUFFER_SIZE; i++){
 		rx_buffer[i] = 0;
 	}
@@ -118,11 +118,11 @@ void _serial_parse(){
  *
  * PARSING_JSON_VAR_OK 				var was OK.
  *
- * PARSING_JSON_VALUE 				looking for number 0-9, a minus sign if number is negative, or char a-z, A-Z if new pair.
+ * PARSING_VALUE 					looking for number 0-9, a minus sign if number is negative, or char a-z, A-Z if new pair.
  *									if char a-z, A-Z, record the pair before to parse the next one.
  *
  * On each step, the next data char is tested against what it should be. If not found, their is an error and the loop stops.
- * If a pair (var + value) is obtained, _serial_record_pair is called, whiwh stores the value in the serial singleton and sets a flag.
+ * If a pair (var + value) is obtained, _serial_record_pair is called, which stores the value in the serial singleton and sets a flag.
  * Last, if the state is PARSING_JSON_END, then it means the parsing was without problem.
  * Then it calls _serial_record_values() to populates the planner buffer.
  */
@@ -132,14 +132,14 @@ void _serial_parse_data(){
 	ss.parser_state = PARSING_VAR;
 	while (rx_tail != rx_head){
 		in_byte = rx_buffer[rx_tail];
-/*
+
 		char queue = _serial_rx_queue();								// Get queue size.
 
 		if ((queue < RX_FLOW_DOWN) && (ss.flow_state == XOFF_SET)){		// Test buffer size against size limit.
 			ss.flow_state = SET_XON;									// Set the new flow control state
 			UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
 	}
-*/
+
 
 //		_serial_append_value(rx_head);
 //		_serial_append_value(rx_tail);
@@ -343,13 +343,13 @@ ISR(USART_UDRE_vect){
 
 	char tail = tx_tail;											// Temp copy to limit volatile acces.	
 	// If flow control must change state, the xon/xoff state is sent before the TX buffer, that is skipped until next iteration.
-/*	if (ss.flow_state == SET_XOFF){
+	if (ss.flow_state == SET_XOFF){
 		UDR0 = XOFF_CHAR;
 		ss.flow_state = XOFF_SET;									// Send XOFF.
 	} else if (ss.flow_state == SET_XON){
 		UDR0 = XON_CHAR;											// Send XON.
 		ss.flow_state = XON_SET;
-	} else */{
+	} else {
 		UDR0 = tx_buffer[tail];										// Copy data buffer to TX data register.
 		tx_incr(tail);												// Increment buffer tail pointer.
 		tx_tail = tail;												// Copy back the temporary value to tx_tail.
@@ -359,17 +359,17 @@ ISR(USART_UDRE_vect){
 	}
 }
 
-/*
+
 char _serial_rx_queue(){
 	ss.queue = rx_head - rx_tail;
 	if (ss.queue < 0){
 		ss.queue += RX_BUFFER_SIZE;
 	}
-	_serial_append_value(ss.queue);
-	_serial_append_nl();
+//	_serial_append_value(ss.queue);
+//	_serial_append_nl();
 	return ss.queue;
 }
-*/
+
 
 void _serial_append_string(String data){
 	int data_length = data.length();
@@ -377,8 +377,8 @@ void _serial_append_string(String data){
 		_serial_append_byte(data.charAt(i));
 	}
 }
-void _serial_append_value(long data){
-	String data_to_send = String(data);
+void _serial_append_value(double data){
+	String data_to_send = String(data, 3);
 	_serial_append_string(data_to_send);
 }
 

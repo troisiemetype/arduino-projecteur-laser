@@ -37,7 +37,6 @@
 
 //includes
 #include "settings.h"
-#include "text_fr.h"
 #include "serialIO.h"
 #include "I2C.h"
 #include "planner.h"
