@@ -46,7 +46,6 @@ driverState ds;
 
 void driver_init(){
 	memset(&ds, 0, sizeof(ds));										// Init the driver state with 0
-	ds.zDistance = Z_DISTANCE;
 
 	ds.beat_count = 0;												// heartbeat values init.
 	ds.beat_max_idle = ISR_FREQUENCY / BEAT_FREQUENCY;				// Heartbeat duration.
@@ -139,6 +138,7 @@ ISR(TIMER1_COMPA_vect){
 		ds.beat_max = ds.beat_max_idle;								// Led blink slow when idle.
 
 	} else {
+		ds.laser_enable = 1;
 		ds.moving = 1;
 		ds.watchdog = 0;											// It's set back to 0 each time there's a move.
 		ds.beat_max = ds.beat_max_driving;							// Led blink faster when moving.
@@ -146,8 +146,9 @@ ISR(TIMER1_COMPA_vect){
 
 
 	}
-	if (ds.watchdog > WATCHDOG_TIMER){								// If it overflows the limit value, the laser is cut
-		ds.now[2] = 0;												// It's a security feature for it doesn't burn anything by staying immobile
+	if (ds.watchdog > WATCHDOG_TIMER && ds.laser_enable == 1){								// If it overflows the limit value, the laser is cut
+//		ds.now[2] = 0;												// It's a security feature for it doesn't burn anything by staying immobile
+		ds.laser_enable = 0;
 		ds.update = 1;
 	}
 
@@ -161,7 +162,7 @@ ISR(TIMER1_COMPA_vect){
 	}
 
 	for (int i=0; i<3; i++){										// compute each of the axis (X, Y and laser)
-		bf->now[i] += (double)bf->incr[i];							// compute the new position with the older one and the increment
+		bf->now[i] += bf->incr[i];									// compute the new position with the older one and the increment
 		ds.now[i] = bf->now[i];										// Records the new position
 	}
 
@@ -182,9 +183,9 @@ ISR(TIMER1_COMPA_vect){
 //	_serial_append_nl();
 }
 
-void driver_update_pos(){
+bool driver_update_pos(){
 	if (ds.update == 0){
-		return;
+		return 0;
 	}
 	//test X value for modification.
 	if (ds.now[0] != ds.previous[0]){
@@ -199,7 +200,13 @@ void driver_update_pos(){
 	I2C_update();
 	ds.update = 0;
 
-	OCR2A = ds.now[2];
+	if(ds.watchdog > WATCHDOG_TIMER){
+		OCR2A = 0;
+	} else {
+		OCR2A = ds.now[2];
+	}
+
+	return 1;
 //	OCR2A = 10;												// Temp value for laser testing
 
 }

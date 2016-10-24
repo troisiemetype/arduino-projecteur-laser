@@ -63,6 +63,7 @@ void loop(){
 	planner_plan_move();
 	//send I2C if needed
 	driver_update_pos();
+
 	/*
 	temps = micros();
 	_serial_append_value(temps - temps_prec);

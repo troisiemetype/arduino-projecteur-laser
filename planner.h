@@ -32,13 +32,11 @@ struct moveBuffer {
 	struct moveBuffer *pv;										// Stores the address of the previous buffer
 	struct moveBuffer *nx;										// Stores the address of the next buffer
 
-	int id;														// Stores the ID of this move, sent by the program
-
 	bool active;												// remember if the buffer is active, i.e. if it has been set or if it's empty
 	bool compute;												// Rememeber if the planner has already calulated the deltas and increments
 
 	long pos[3];													// The position we must go to
-	int speed;													// Ditto speed. Applies to the curent movement. Galvo increments/second.
+	unsigned int speed;													// Ditto speed. Applies to the curent movement. Galvo increments/second.
 	char mode;													// Stores the current mode: 0 = fast movement, else = calibrated movement
 
 	double now[3];												// Stores the instant position
@@ -70,7 +68,7 @@ void planner_init_buffer();
 byte planner_get_available();
 moveBuffer* planner_get_run_buffer();
 void planner_set_next_buffer(byte buffer);
-void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mode, byte set);
+void planner_set_buffer(int posX, int posY, int posL, int speed, byte mode, byte set);
 void planner_free_buffer(moveBuffer * bf);
 void planner_plan_move();
 

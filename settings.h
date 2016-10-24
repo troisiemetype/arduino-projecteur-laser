@@ -24,33 +24,32 @@
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
-//#define LANGUAGE				FRANCAIS
-
 // Serial settings
-#define BAUDRATE				115200					// Defines the baudrate used for the serial
+#define BAUDRATE				57600				// Defines the baudrate used for the serial
 
 // I2C settings
-#define X_I2C_ADDR				0x62					// These addresses can changed accroding to the hardware DAC you use
+#define X_I2C_ADDR				0x62				// These addresses can changed accroding to the hardware DAC you use
 #define Y_I2C_ADDR				0x63
 #define L_I2C_ADDR				0x64
 
-#define I2C_ADDR				0x20					// This adress is for use with a AD5665 DAC in adress mode
+#define I2C_ADDR				0x20				// This adress is for use with a AD5665 DAC in adress mode
 
-#define DAC_SIZE				16						// Number of bit the DAC uses
+#define DAC_SIZE				16					// Number of bit the DAC uses
 
-#define DEFAULT_SPEED			1000					// Default speed of the projecteur. Galvo steps/seconde. Used to avoid division / 0.
+#define DEFAULT_SPEED			1000				// Default speed of the projecteur. Galvo steps/seconde. Used to avoid division / 0.
 
-#define CLOCK_SPEED				16000000				// Frequency of the board
-#define ISR_FREQUENCY			5000					// Frequency of the interrupt
-#define BEAT_FREQUENCY			0.5						// Frequency of the heartbeat
+#define CLOCK_SPEED				16000000			// Frequency of the board
+#define ISR_FREQUENCY			100					// Frequency of the interrupt
+#define BEAT_FREQUENCY			0.5					// Frequency of the heartbeat
 
-#define WATCHDOG_TIMER			2000						// Number of ISR interrupts whitout move before to stop the laser
+#define WATCHDOG_TIMER			500					// Number of ISR interrupts whitout move before to stop the laser
 
 /*
-#define MOVE_CARTESIAN			0						// Used to test the move type in the driver ISR
+#define MOVE_CARTESIAN			0					// Used to test the move type in the driver ISR
 #define MOVE_POLAR				1
 */
 
-#define Z_DISTANCE				1000					// Default distance from projector to wall, in mm
+#define INVERT_X				true
+#define INVERT_Y				true
 
 #endif

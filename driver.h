@@ -41,16 +41,16 @@ struct driverState{
 	int beat_max_idle;												// Stores the value the led state should be changed when idle.
 	int beat_max_driving;											// Ditto computing and sending data to galvo drivers.
 
-	int zDistance;													// Stores the distance from projector to wall
-
 	volatile char moving;											// Knows if it's moving or not
 
 	volatile bool update;
+
+	bool laser_enable;
 };
 
 void driver_init();
 void driver_interrupt_init();
-void driver_update_pos();
+bool driver_update_pos();
 driverState * driver_get_ds();
 boolean driver_is_moving();
 volatile double * driver_get_position();

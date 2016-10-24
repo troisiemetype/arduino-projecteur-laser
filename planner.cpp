@@ -96,7 +96,7 @@ void planner_set_next_buffer(byte buffer){
  * then it copies these parameters to the buffer
  * last, it steps up the write pointer and decrease the available counter
  */
-void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mode, byte set){
+void planner_set_buffer(int posX, int posY, int posL, int speed, byte mode, byte set){
 	moveBuffer *bf = mbp.write;
 	moveBuffer *pv = bf->pv;
 
@@ -104,14 +104,18 @@ void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mo
 	// If the previous buffer is populated, the start position is the end position of this buffer, so we copy it
 	// If the previous buffer is empty, then we have to use the current position, that is stored in the driverState struct
 	if (pv->active == 0){													// verifies how is the buffer queue
-		volatile double * position = driver_get_position();					// Get the driver state
+		double * position = driver_get_position();					// Get the driver state
 		for (int i=0; i<3; i++){
-			bf->now[i] = position[i];										// If previous buffer is empty, set now[] as the current position
+			// If previous buffer is empty, set now[] as the current position
+			bf->now[i] = (double)position[i];
 		}
-	} else {																// If previous buffer is populated, now[] will be the previous output
+//		serial_send_pair("pos X départ arreté = ", bf->now[0]);
+	} else {
+		// If previous buffer is populated, now[] will be the previous output
 		for (int i=0; i<3; i++){
 			bf->now[i] = pv->pos[i];
 		}
+//		serial_send_pair("pos X départ mouvement = ", bf->now[0]);
 	}
 
 	// These tests verify if the value has been sent by the computer.
@@ -135,14 +139,17 @@ void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mo
 		mode = pv->mode;
 	}
 
-	bf->id = id;															// Copies the values to the buffer
+
 	bf->pos[0] = posX;
 	bf->pos[1] = posY;
 	bf->pos[2] = posL;
 	bf->speed = speed;
 	bf->mode = mode;
-	bf->compute = 0;														// Compute = 0 says that the buffer needs to be planned
-	bf->active = 1;															// active = 1 tells that values have been load in the buffer
+	// Compute = 0 says that the buffer needs to be planned
+	//bf->compute = 0;
+	// active = 1 tells that values have been loaded in the buffer
+	bf->active = 1;
+
 	// steps up the write pointer.
 	planner_set_next_buffer(0);
 	mbp.available--;
@@ -153,7 +160,7 @@ void planner_set_buffer(int id, int posX, int posY, int posL, int speed, byte mo
 /* It does so by copying pv and nx pointers, do a memset (populates buffer with zeros) and copy back pv and nx pointers
  * It then increase the available counter
  */
-void planner_free_buffer(moveBuffer*bf){
+void planner_free_buffer(moveBuffer* bf){
 	moveBuffer *pv;
 	moveBuffer *nx;
 
@@ -174,6 +181,7 @@ void planner_free_buffer(moveBuffer*bf){
  */
 void planner_plan_move(){
 	moveBuffer *bf = mbp.queue;
+//	serial_send_pair("bf->active", bf->active);
 	if (bf->compute == 1 || bf->active == 0){								// If compute == 1, the buffer has already been computed
 		return;																// If Compute == 0, the buffer is empty
 	}
@@ -199,17 +207,30 @@ void planner_plan_move(){
 		for (int i = 0; i<3; i++){											// Compute the increment for each axe
 			bf->incr[i] = (double)bf->delta[i] / (double)bf->steps;
 		}
-//		serial_send_pair("incrX",bf->incr[0]);
-//		serial_send_pair("incrY",bf->incr[1]);
-//		serial_send_pair("incrL",bf->incr[2]);
 	} else {
 		//If the move type is fast move, the increment equals the new pos.
+		bf->steps = 1;
 		for (int i = 0; i<3; i++){
-			bf->steps = 1;
-			bf->incr[i] = bf->pos[i] - bf->pv->pos[i];
+			bf->incr[i] = bf->pos[i] - bf->now[i];
 		}
 	}
-
+/*	serial_send_pair("posX",bf->pos[0]);
+	serial_send_pair("posY",bf->pos[1]);
+	serial_send_pair("posL",bf->pos[2]);
+	_serial_append_nl();
+	serial_send_pair("delta total",bf->deltaTotal);
+	serial_send_pair("deltaX",bf->delta[0]);
+	serial_send_pair("deltaY",bf->delta[1]);
+	serial_send_pair("deltaL",bf->delta[2]);
+	serial_send_pair("steps", bf->steps);
+	_serial_append_nl();
+	serial_send_pair("incrX",bf->incr[0]);
+	serial_send_pair("incrY",bf->incr[1]);
+	serial_send_pair("incrL",bf->incr[2]);
+	serial_send_pair("mode", bf->mode);
+	_serial_append_nl();
+	_serial_append_nl();
+*/
 	bf->compute = 1;														// The buffer is marked as having been compute
 	planner_set_next_buffer(1);												// The queue index is step up
 }

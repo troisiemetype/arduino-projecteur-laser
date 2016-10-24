@@ -196,12 +196,11 @@ void _serial_parse_data(){
 
 void _serial_record_pair(){
 
-	if (ss.inVar == "I"){												// Sets the right value to the right var
-		ss.parser_data_received |= 32;									// Sets a flag.
-		ss.id = ss.inValue;												// Records value.
-//		serial_send_pair("ID", ss.id);
+// Sets the right value to the right var
+// Sets a flag.
+// Records value.
 
-	} else if (ss.inVar == "X"){
+	if (ss.inVar == "X"){
 		ss.parser_data_received |= 16;
 		ss.posX = ss.inValue;
 //		serial_send_pair("X", ss.posX);
@@ -233,7 +232,7 @@ void _serial_record_pair(){
 void _serial_record_values(){
 	if (ss.parser_data_received != 0){
 //		serial_send_message("populates buffer");
-		planner_set_buffer(ss.id, ss.posX, ss.posY, ss.posL, ss.speed, ss.mode, ss.parser_data_received);	// Populates the buffer with the values received
+		planner_set_buffer(ss.posX, ss.posY, ss.posL, ss.speed, ss.mode, ss.parser_data_received);	// Populates the buffer with the values received
 	}
 	ss.parser_data_received = 0;
 	ss.inVar="";

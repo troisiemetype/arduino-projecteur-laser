@@ -29,8 +29,8 @@
 #define TX_BUFFER_SIZE				128
 
 // For Xon flow.
-#define RX_FLOW_UP					64
-#define RX_FLOW_DOWN				30
+#define RX_FLOW_UP					96
+#define RX_FLOW_DOWN				32
 
 #define SET_XON						1
 #define XON_SET						2
@@ -73,7 +73,7 @@ struct serialState{
 
 	volatile char queue;							// Stocks the rx queue size when _serial_rx_queue is called.
 
-	long id;										// Stocks the vales received, if parsing has been successfull.
+//	long id;										// Stocks the vales received, if parsing has been successfull.
 	long posX;
 	long posY;
 	long posL;
