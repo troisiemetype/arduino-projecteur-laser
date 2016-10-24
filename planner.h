@@ -46,7 +46,7 @@ struct moveBuffer {
 	long delta[3];													
 
 	long steps;													// Stores the number ot steps for this move (== (delta / speed) * ISR_FREQUENCY)
-	long nowSteps;
+	volatile long nowSteps;
 
 	// TODO: TEST FIXPOINT MATH.
 	double incr[3];												// The increment it must goes forward on each step
