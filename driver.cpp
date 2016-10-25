@@ -112,13 +112,43 @@ void driver_interrupt_init(){
 
 }
 
-// The ISR drives the position calculation in realtime
+// The ISR sets a flag when position needs to be updated.
 ISR(TIMER1_COMPA_vect){
 	// Debug: ISR time mesure
-//	long debut = micros();
+	long debut = TCNT1;
 
 	// Heartbeat calculation.
-		ds.beat_count++;
+	ds.beat_count++;
+
+	// Verifies that there is movement
+	if ((ds.now[0] == ds.previous[0]) && (ds.now[1] == ds.previous[1])){
+		ds.moving = 0;												// records the current state
+		ds.watchdog++;												// The watchdog increments if there is no move
+
+	} else {
+		ds.laser_enable = 1;
+		ds.moving = 1;
+		ds.watchdog = 0;											// It's set back to 0 each time there's a move.
+	}
+
+	if (ds.watchdog > WATCHDOG_TIMER && ds.laser_enable == 1){								// If it overflows the limit value, the laser is cut
+//		ds.now[2] = 0;												// It's a security feature for it doesn't burn anything by staying immobile
+		ds.laser_enable = 0;
+		ds.update = 1;
+	}
+
+	ds.update = 1;
+
+	//debug: ISR time mesure
+	long fin = TCNT1;
+
+	ds.isrLength = fin - debut;
+
+//	_serial_append_value(micros()-debut);
+//	_serial_append_nl();
+}
+
+void driver_heartbeat(){
 	if (ds.beat_count >= ds.beat_max){
 		ds.beat_count = 0;
 		bool state = (PORTB & (1 << PB5));
@@ -129,28 +159,20 @@ ISR(TIMER1_COMPA_vect){
 		}
 	}
 
-	moveBuffer *bf = planner_get_run_buffer();						// Get a pointer to the run buffer
-
-	// Verifies that there is movement
-	if ((ds.now[0] == ds.previous[0]) && (ds.now[1] == ds.previous[1])){
-		ds.moving = 0;												// records the current state
-		ds.watchdog++;												// The watchdog increments if there is no move
-		ds.beat_max = ds.beat_max_idle;								// Led blink slow when idle.
-
-	} else {
-		ds.laser_enable = 1;
-		ds.moving = 1;
-		ds.watchdog = 0;											// It's set back to 0 each time there's a move.
+	if (ds.moving){
 		ds.beat_max = ds.beat_max_driving;							// Led blink faster when moving.
-
-
-
+	} else {
+		ds.beat_max = ds.beat_max_idle;								// Led blink slow when idle.
 	}
-	if (ds.watchdog > WATCHDOG_TIMER && ds.laser_enable == 1){								// If it overflows the limit value, the laser is cut
-//		ds.now[2] = 0;												// It's a security feature for it doesn't burn anything by staying immobile
-		ds.laser_enable = 0;
-		ds.update = 1;
+
+}
+
+bool driver_prepare_pos(){
+	if (!ds.compute){
+		return 0;
 	}
+	//Start of the ISR block
+	moveBuffer *bf = planner_get_run_buffer();						// Get a pointer to the run buffer
 
 	for (int i=0; i<3; i++){										// records the last position before to update it
 		ds.previous[i] = ds.now[i];
@@ -178,15 +200,16 @@ ISR(TIMER1_COMPA_vect){
 	} else {
 		bf->nowSteps++;
 	}
-
-//	_serial_append_value(micros()-debut);
-//	_serial_append_nl();
+	//End of the ISR block
+	ds.compute = 0;
+	return 1;
 }
 
 bool driver_update_pos(){
-	if (ds.update == 0){
+	if (ds.update == 0 || ds.compute == 1){
 		return 0;
 	}
+	serial_send_pair("ticks ISR", ds.isrLength);
 	//test X value for modification.
 	if (ds.now[0] != ds.previous[0]){
 		unsigned int pos = ds.now[0] + DRIVER_OFFSET;
@@ -199,6 +222,7 @@ bool driver_update_pos(){
 	}
 	I2C_update();
 	ds.update = 0;
+	ds.compute = 1;
 
 	if(ds.watchdog > WATCHDOG_TIMER){
 		OCR2A = 0;

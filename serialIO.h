@@ -84,7 +84,7 @@ struct serialState{
 };
 
 void serial_init();
-void serial_get_data();
+bool serial_get_data();
 void _serial_parse();
 void _serial_parse_data();
 void _serial_record_pair();

@@ -57,18 +57,24 @@ void setup(){
 }
 
 void loop(){
-	//Look for available data
-	serial_get_data();
-	//Populates buffer if needed.
-	planner_plan_move();
+
 	//send I2C if needed
 	driver_update_pos();
 
-	/*
+	driver_heartbeat();
+
+	driver_prepare_pos();
+	//Look for available data
+	serial_get_data();
+
+	//Populates buffer if needed.
+	planner_plan_move();
+
+	
 	temps = micros();
 	_serial_append_value(temps - temps_prec);
 	_serial_append_nl();
 	temps_prec = temps;
-	*/
+	
 	
 }

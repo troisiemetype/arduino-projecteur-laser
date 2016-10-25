@@ -31,25 +31,33 @@
 
 // This structure stores the state of the Driver
 struct driverState{
-	volatile double now[3];											// Stores the current position
-	volatile double previous[3];									// Stores the previous position
+	double now[3];											// Stores the current position
+	double previous[3];									// Stores the previous position
+
+
+	bool compute;
 
 	int watchdog;													// looks after the move, to stop the laser if there's no.
 
-	unsigned int beat_count;										// Stores the number of overflow to give an heartbeat.
+	volatile unsigned int beat_count;										// Stores the number of overflow to give an heartbeat.
 	int beat_max;													// Current value, is set ot one of the two above by driver.
 	int beat_max_idle;												// Stores the value the led state should be changed when idle.
 	int beat_max_driving;											// Ditto computing and sending data to galvo drivers.
 
 	volatile char moving;											// Knows if it's moving or not
 
-	volatile bool update;
+	bool update;
 
 	bool laser_enable;
+
+	//debug: get the ISR time length
+	volatile long isrLength;
 };
 
 void driver_init();
 void driver_interrupt_init();
+void driver_heartbeat();
+bool driver_prepare_pos();
 bool driver_update_pos();
 driverState * driver_get_ds();
 boolean driver_is_moving();

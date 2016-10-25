@@ -179,11 +179,11 @@ void planner_free_buffer(moveBuffer* bf){
 // This function plans the move for a buffer
 /* It first get the pointer to the queue buffer
  */
-void planner_plan_move(){
+bool planner_plan_move(){
 	moveBuffer *bf = mbp.queue;
 //	serial_send_pair("bf->active", bf->active);
 	if (bf->compute == 1 || bf->active == 0){								// If compute == 1, the buffer has already been computed
-		return;																// If Compute == 0, the buffer is empty
+		return false;																// If Compute == 0, the buffer is empty
 	}
 
 	if (bf->mode != 0){														// Look at the type of move: O is fast (placement), else is calibrated
@@ -233,4 +233,6 @@ void planner_plan_move(){
 */
 	bf->compute = 1;														// The buffer is marked as having been compute
 	planner_set_next_buffer(1);												// The queue index is step up
+
+	return true;
 }

@@ -70,6 +70,6 @@ moveBuffer* planner_get_run_buffer();
 void planner_set_next_buffer(byte buffer);
 void planner_set_buffer(int posX, int posY, int posL, int speed, byte mode, byte set);
 void planner_free_buffer(moveBuffer * bf);
-void planner_plan_move();
+bool planner_plan_move();
 
 #endif

@@ -75,13 +75,13 @@ void serial_init(){
 	serial_send_message("Liaison série initialisée.");
 }
 
-void serial_get_data(){
+bool serial_get_data(){
 //	serial_xon_xoff();														// Verifies the buffer size
 	ss.parser_state = PARSING_IDLE;
 
 	if (planner_get_available() < 2){										// Manage the planner buffer queue.
 //		serial_send_message("no buffer available");
-		return;
+		return false;
 	}
 
 	if (to_read_flag){
@@ -90,6 +90,8 @@ void serial_get_data(){
 //		_serial_append_value(rx_tail);
 		_serial_parse();
 	}
+
+	return true;
 
 }
 
