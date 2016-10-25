@@ -48,8 +48,6 @@ struct driverState{
 
 	bool update;
 
-	bool laser_enable;
-
 	//debug: get the ISR time length
 	volatile long isrLength;
 };
@@ -59,6 +57,7 @@ void driver_interrupt_init();
 void driver_heartbeat();
 bool driver_prepare_pos();
 bool driver_update_pos();
+void driver_shut_laser();
 driverState * driver_get_ds();
 boolean driver_is_moving();
 volatile double * driver_get_position();

@@ -58,6 +58,14 @@ void setup(){
 
 void loop(){
 
+	temps = micros();
+	_serial_append_value(temps - temps_prec);
+	_serial_append_nl();
+	temps_prec = temps;
+
+	//verifies that the laser must be lit
+	driver_shut_laser();
+
 	//send I2C if needed
 	driver_update_pos();
 
@@ -68,13 +76,6 @@ void loop(){
 	serial_get_data();
 
 	//Populates buffer if needed.
-	planner_plan_move();
-
-	
-	temps = micros();
-	_serial_append_value(temps - temps_prec);
-	_serial_append_nl();
-	temps_prec = temps;
-	
+	planner_plan_move();	
 	
 }

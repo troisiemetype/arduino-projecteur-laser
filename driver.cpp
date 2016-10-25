@@ -126,23 +126,16 @@ ISR(TIMER1_COMPA_vect){
 		ds.watchdog++;												// The watchdog increments if there is no move
 
 	} else {
-		ds.laser_enable = 1;
 		ds.moving = 1;
 		ds.watchdog = 0;											// It's set back to 0 each time there's a move.
-	}
-
-	if (ds.watchdog > WATCHDOG_TIMER && ds.laser_enable == 1){								// If it overflows the limit value, the laser is cut
-//		ds.now[2] = 0;												// It's a security feature for it doesn't burn anything by staying immobile
-		ds.laser_enable = 0;
-		ds.update = 1;
 	}
 
 	ds.update = 1;
 
 	//debug: ISR time mesure
-	long fin = TCNT1;
+//	long fin = TCNT1;
 
-	ds.isrLength = fin - debut;
+	ds.isrLength = TCNT1 - debut;
 
 //	_serial_append_value(micros()-debut);
 //	_serial_append_nl();
@@ -202,6 +195,7 @@ bool driver_prepare_pos(){
 	}
 	//End of the ISR block
 	ds.compute = 0;
+	
 	return 1;
 }
 
@@ -224,15 +218,17 @@ bool driver_update_pos(){
 	ds.update = 0;
 	ds.compute = 1;
 
-	if(ds.watchdog > WATCHDOG_TIMER){
-		OCR2A = 0;
-	} else {
-		OCR2A = ds.now[2];
-	}
+	OCR2A = ds.now[2];
 
 	return 1;
 //	OCR2A = 10;												// Temp value for laser testing
 
+}
+
+void driver_shut_laser(){
+	if(!ds.moving){
+		OCR2A = 0;
+	}
 }
 
 driverState * driver_get_ds(){
