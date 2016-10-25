@@ -35,11 +35,11 @@ struct moveBuffer {
 	bool active;												// remember if the buffer is active, i.e. if it has been set or if it's empty
 	bool compute;												// Rememeber if the planner has already calulated the deltas and increments
 
-	long pos[3];													// The position we must go to
-	unsigned int speed;													// Ditto speed. Applies to the curent movement. Galvo increments/second.
+	long pos[3];												// The position we must go to
+	unsigned int speed;											// Ditto speed. Applies to the curent movement. Galvo increments/second.
 	char mode;													// Stores the current mode: 0 = fast movement, else = calibrated movement
 
-	double now[3];												// Stores the instant position
+	double current[3];											// Stores the instant position
 
 	// TODO: SEE WITH TESTS IF deltaTotal HAS TO BEE A DOUBLE INSTEAD OF AN UNSIGNED INT.
 	unsigned int deltaTotal;									// The delta between the start and the final position.

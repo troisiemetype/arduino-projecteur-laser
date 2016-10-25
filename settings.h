@@ -26,7 +26,7 @@
 
 // Serial settings
 //14400
-#define BAUDRATE				115200				// Defines the baudrate used for the serial
+#define BAUDRATE				14400				// Defines the baudrate used for the serial
 
 // I2C settings
 #define X_I2C_ADDR				0x62				// These addresses can changed accroding to the hardware DAC you use

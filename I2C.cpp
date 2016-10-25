@@ -76,9 +76,11 @@ void I2C_write(char axe, int pos){
 	switch (axe){
 		case 'X':
 			_addressByte = AD5665_DAC_A;
+			if(INVERT_X){pos = -pos;}
 			break;
 		case 'Y':
 			_addressByte = AD5665_DAC_B;
+			if(INVERT_Y){pos = -pos;}
 			break;
 		case 'L':
 			_addressByte = AD5665_DAC_C;

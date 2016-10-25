@@ -106,16 +106,16 @@ void planner_set_buffer(int posX, int posY, int posL, int speed, byte mode, byte
 	if (pv->active == 0){													// verifies how is the buffer queue
 		double * position = driver_get_position();					// Get the driver state
 		for (int i=0; i<3; i++){
-			// If previous buffer is empty, set now[] as the current position
-			bf->now[i] = (double)position[i];
+			// If previous buffer is empty, set current[] as the current position
+			bf->current[i] = (double)position[i];
 		}
-//		serial_send_pair("pos X départ arreté = ", bf->now[0]);
+//		serial_send_pair("pos X départ arreté = ", bf->current[0]);
 	} else {
-		// If previous buffer is populated, now[] will be the previous output
+		// If previous buffer is populated, current[] will be the previous output
 		for (int i=0; i<3; i++){
-			bf->now[i] = pv->pos[i];
+			bf->current[i] = pv->pos[i];
 		}
-//		serial_send_pair("pos X départ mouvement = ", bf->now[0]);
+//		serial_send_pair("pos X départ mouvement = ", bf->current[0]);
 	}
 
 	// These tests verify if the value has been sent by the computer.
@@ -124,13 +124,13 @@ void planner_set_buffer(int posX, int posY, int posL, int speed, byte mode, byte
 	// previous buffer end position if it's populated
 	// So we just copy the values that have been set above
 	if (!(set & 16)){
-		posX = bf->now[0];
+		posX = bf->current[0];
 	}
 	if (!(set & 8)){
-		posY = bf->now[1];
+		posY = bf->current[1];
 	}
 	if (!(set & 4)){
-		posL = bf->now[2];
+		posL = bf->current[2];
 	}
 	if (!(set & 2)){
 		speed = pv->speed;
@@ -188,7 +188,7 @@ bool planner_plan_move(){
 
 	if (bf->mode != 0){														// Look at the type of move: O is fast (placement), else is calibrated
 		for (int i=0; i<3; i++){											// Compute the delta between previous and goal position
-			bf->delta[i] = bf->pos[i] - bf->now[i];
+			bf->delta[i] = bf->pos[i] - bf->current[i];
 		}
 		bf->deltaTotal = sqrt(pow(bf->delta[0], 2) + pow(bf->delta[1], 2));	// Compute the length of the route
 //		serial_send_pair("delta", bf->deltaTotal);
@@ -211,7 +211,7 @@ bool planner_plan_move(){
 		//If the move type is fast move, the increment equals the new pos.
 		bf->steps = 1;
 		for (int i = 0; i<3; i++){
-			bf->incr[i] = bf->pos[i] - bf->now[i];
+			bf->incr[i] = bf->pos[i] - bf->current[i];
 		}
 	}
 /*	serial_send_pair("posX",bf->pos[0]);

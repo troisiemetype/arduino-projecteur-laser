@@ -44,6 +44,8 @@
 
 driverState ds;
 
+driverBufferPool dbp;
+
 void driver_init(){
 	memset(&ds, 0, sizeof(ds));										// Init the driver state with 0
 
@@ -56,9 +58,33 @@ void driver_init(){
 	DDRB |= (1 << PB3) | (1 << PB5);								// Set pins 11 (laser) and 13 (led) as outputs
 	PORTB &= ~(1 << PB5);											// Unset pin 13
 	
+	driver_init_buffer();
 	driver_interrupt_init();
 
 	serial_send_message("Driver initialisé.");
+
+}
+
+void driver_init_buffer(){
+	driverBuffer *pv;															// creates a pointer to buffer
+
+	memset(&dbp, 0, sizeof(dbp));											// Clears the buffer pool
+
+	dbp.run = &dbp.pool[0];												// sets pointers to write on the first item in the pool
+	dbp.queue = &dbp.pool[0];												// sets pointers to write on the first item in the pool
+	dbp.available = DRIVER_POOL_SIZE;										// Sets the number of available buffers
+
+	pv = &dbp.pool[DRIVER_POOL_SIZE-1];										// Sets the pv pointer on the last buffer of the pool
+
+	for (byte i=0; i<DRIVER_POOL_SIZE; i++){								// For each buffer in the pool,
+		dbp.pool[i].pv = pv;												// Sets a pointer to the previous buffer
+		if (i<DRIVER_POOL_SIZE-1){											// And to the next buffer								
+			dbp.pool[i].nx = &dbp.pool[i+1];								// pointer is to the next buffer
+		} else {															// If last iteration, next buffer is #0
+			dbp.pool[i].nx = &dbp.pool[0];
+		}
+		pv = &dbp.pool[i];													// Prepare next iteration: current buffer is the previous of the next.
+	}
 
 }
 
@@ -115,32 +141,19 @@ void driver_interrupt_init(){
 // The ISR sets a flag when position needs to be updated.
 ISR(TIMER1_COMPA_vect){
 	// Debug: ISR time mesure
-	long debut = TCNT1;
+//	long debut = TCNT1;
 
 	// Heartbeat calculation.
 	ds.beat_count++;
 
-	// Verifies that there is movement
-	if ((ds.now[0] == ds.previous[0]) && (ds.now[1] == ds.previous[1])){
-		ds.moving = 0;												// records the current state
-		ds.watchdog++;												// The watchdog increments if there is no move
-
-	} else {
-		ds.moving = 1;
-		ds.watchdog = 0;											// It's set back to 0 each time there's a move.
-	}
-
 	ds.update = 1;
 
 	//debug: ISR time mesure
-//	long fin = TCNT1;
+//	ds.isrLength = TCNT1 - debut;
 
-	ds.isrLength = TCNT1 - debut;
-
-//	_serial_append_value(micros()-debut);
-//	_serial_append_nl();
 }
 
+// set or unset the led.
 void driver_heartbeat(){
 	if (ds.beat_count >= ds.beat_max){
 		ds.beat_count = 0;
@@ -160,85 +173,116 @@ void driver_heartbeat(){
 
 }
 
-bool driver_prepare_pos(){
-	if (!ds.compute){
-		return 0;
-	}
-	//Start of the ISR block
-	moveBuffer *bf = planner_get_run_buffer();						// Get a pointer to the run buffer
-
-	for (int i=0; i<3; i++){										// records the last position before to update it
-		ds.previous[i] = ds.now[i];
-	}
-
-
-	if (bf->active == 0 || bf->compute == 0){						// If the run buffer is not set or compute, escape the interrupt routine
+void driver_plan_pos(){
+	if (dbp.available < 1){
 		return;
 	}
 
-	for (int i=0; i<3; i++){										// compute each of the axis (X, Y and laser)
-		bf->now[i] += bf->incr[i];									// compute the new position with the older one and the increment
-		ds.now[i] = bf->now[i];										// Records the new position
+	//Create pointers to the current planner buffer.
+	moveBuffer *bf = planner_get_run_buffer();
+
+	//Verify there is a move to compute in the planner, else return.
+	if (bf->active == 0 || bf->compute == 0){
+		return;
 	}
 
-	ds.update = 1;													// Set a flag to update pos. I2C cannot be called from an ISR.
-	
-	if (bf->nowSteps >= bf->steps-1){								// If the number of steps of this move has been reach,
+//	serial_send_message("driver plan");
 
-		for (int i=0; i<3; i++){									// Copy the goal position to the driverState
-			ds.now[i] = bf->pos[i];									// Otherwise the coordinate approx could lead to drift
+	//Get pointer to the next driver buffer
+	driverBuffer *db = dbp.queue;
+
+	//compute each of the axis.
+	for (int i=0; i<3; i++){	
+		//Compute the new position, then record it.
+		bf->current[i] += bf->incr[i];
+		db->pos[i] = bf->current[i];
+	}
+
+	//If the max number of steps for this move has been reach, 
+	if (bf->nowSteps >= bf->steps-1){
+		//Copy the goal position instead of the compute position, to minimize drift due to roudings.
+		for (int i=0; i<3; i++){
+			db->pos[i] = bf->pos[i];
 		}
-		planner_set_next_buffer(2);									// Set the next run buffer
-		planner_free_buffer(bf);									// Frees the buffer
+		//Set the planner buffer to next, then free it.
+		planner_set_next_buffer(2);
+		planner_free_buffer(bf);
+
 	} else {
 		bf->nowSteps++;
 	}
-	//End of the ISR block
-	ds.compute = 0;
-	
-	return 1;
+
+	//prepare the next movement.
+	dbp.queue = db->nx;
+	dbp.available --;
+
 }
 
-bool driver_update_pos(){
-	if (ds.update == 0 || ds.compute == 1){
-		return 0;
+void driver_update_pos(){
+	if (!ds.update){
+		return;
 	}
-	serial_send_pair("ticks ISR", ds.isrLength);
-	//test X value for modification.
-	if (ds.now[0] != ds.previous[0]){
-		unsigned int pos = ds.now[0] + DRIVER_OFFSET;
+	// Verifies that there is movement
+	if ((ds.now[0] == ds.previous[0]) && (ds.now[1] == ds.previous[1])){
+		ds.moving = 0;
+	} else {
+		ds.moving = 1;
+	}
+
+	//Record the last sent position before to update.
+	for (int i=0; i<3; i++){
+		ds.previous[i] = ds.now[i];
+	}
+
+	//Debug: display the length of the driver isr.
+	//Check to uncomment mesurings in the ISR, and var def in driver.h
+//	serial_send_pair("ticks ISR:", ds.isrLength);
+
+
+	//Verifies there are positions to update.
+	if (dbp.available >= DRIVER_POOL_SIZE){
+		return;
+	}
+
+	//Get the current run buffer
+	driverBuffer *db = dbp.run;
+
+	//Send the new values to the I2C
+	if (db->pos[0] != ds.previous[0]){
+		unsigned int pos = db->pos[0] + DRIVER_OFFSET;
 		I2C_write('X', pos);
 	}
-	//test Y value for modification.
-	if (ds.now[1] != ds.previous[1]){
-		unsigned int pos = ds.now[1] + DRIVER_OFFSET;
+ 
+	if (db->pos[1] != ds.previous[1]){
+		unsigned int pos = db->pos[1] + DRIVER_OFFSET;
 		I2C_write('Y', pos);
 	}
+
 	I2C_update();
+
+	//Record the new current position.
+	for (int i=0; i<3; i++){
+		ds.now[i] = db->pos[i];
+	}
+
+
 	ds.update = 0;
-	ds.compute = 1;
 
-	OCR2A = ds.now[2];
-
-	return 1;
-//	OCR2A = 10;												// Temp value for laser testing
+	dbp.run = db->nx;
+	dbp.available++;
 
 }
 
-void driver_shut_laser(){
+//update the laser output.
+//Out of the update function because of the need to cut it when not moving.
+void driver_laser(){
 	if(!ds.moving){
 		OCR2A = 0;
+	} else {
+		OCR2A = ds.now[2];
 	}
 }
 
-driverState * driver_get_ds(){
-	return &ds;
-}
-
-boolean driver_is_moving(){
-	return ds.moving;
-}
-
-volatile double * driver_get_position(){
+double * driver_get_position(){
 	return ds.now;
 }

@@ -202,27 +202,27 @@ void _serial_record_pair(){
 // Sets a flag.
 // Records value.
 
-	if (ss.inVar == "X"){
+	if (ss.inVar == 'X'){
 		ss.parser_data_received |= 16;
 		ss.posX = ss.inValue;
 //		serial_send_pair("X", ss.posX);
 
-	} else if (ss.inVar == "Y"){
+	} else if (ss.inVar == 'Y'){
 		ss.parser_data_received |= 8;
 		ss.posY = ss.inValue;
 //		serial_send_pair("Y", ss.posY);
 
-	} else if (ss.inVar == "L"){
+	} else if (ss.inVar == 'L'){
 		ss.parser_data_received |= 4;
 		ss.posL = ss.inValue;
 //		serial_send_pair("L", ss.posL);
 
-	} else if (ss.inVar == "S"){
+	} else if (ss.inVar == 'S'){
 		ss.parser_data_received |= 2;
 		ss.speed = ss.inValue;
 //		serial_send_pair("speed", ss.speed);
 
-	} else if (ss.inVar == "M"){
+	} else if (ss.inVar == 'M'){
 		ss.parser_data_received |= 1;
 		ss.mode = ss.inValue;
 //		serial_send_pair("mode", ss.mode);

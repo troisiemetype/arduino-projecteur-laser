@@ -27,24 +27,26 @@
 #ifndef DRIVER_H
 #define DRIVER_H
 
-#define DRIVER_OFFSET	32768
+#define DRIVER_OFFSET		32768
+
+#define DRIVER_POOL_SIZE	12
 
 // This structure stores the state of the Driver
 struct driverState{
-	double now[3];											// Stores the current position
-	double previous[3];									// Stores the previous position
+	//Stores the current poition.
+	//Stores the previous prosition. Used to know if there is move.
+	double now[3];
+	double previous[3];
 
+	//Vars for the heartbeat led. It counts the ISR interrupts,
+	//and the current and maxe values for both modes.
+	volatile unsigned int beat_count;
+	int beat_max;
+	int beat_max_idle;
+	int beat_max_driving;
 
-	bool compute;
-
-	int watchdog;													// looks after the move, to stop the laser if there's no.
-
-	volatile unsigned int beat_count;										// Stores the number of overflow to give an heartbeat.
-	int beat_max;													// Current value, is set ot one of the two above by driver.
-	int beat_max_idle;												// Stores the value the led state should be changed when idle.
-	int beat_max_driving;											// Ditto computing and sending data to galvo drivers.
-
-	volatile char moving;											// Knows if it's moving or not
+	//Stores if the laser is moving
+	bool moving;
 
 	bool update;
 
@@ -52,14 +54,32 @@ struct driverState{
 	volatile long isrLength;
 };
 
+//This buffer stores the computed position of the driver,
+//and a pointer to next and previous buffers;.
+struct driverBuffer{
+	struct driverBuffer *pv;
+	struct driverBuffer *nx;
+
+	double pos[3];
+};
+
+//This is the buffer ring for position buffers.
+struct driverBufferPool{
+	struct driverBuffer *run;
+	struct driverBuffer *queue;
+
+	byte available;
+
+	driverBuffer pool[DRIVER_POOL_SIZE];
+};
+
 void driver_init();
+void driver_init_buffer();
 void driver_interrupt_init();
 void driver_heartbeat();
-bool driver_prepare_pos();
-bool driver_update_pos();
-void driver_shut_laser();
-driverState * driver_get_ds();
-boolean driver_is_moving();
-volatile double * driver_get_position();
+void driver_plan_pos();
+void driver_update_pos();
+void driver_laser();
+double * driver_get_position();
 
 #endif
