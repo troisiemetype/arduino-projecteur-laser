@@ -26,11 +26,13 @@
 #define SERIALIO_H
 
 #define RX_BUFFER_SIZE				128
-#define TX_BUFFER_SIZE				128
+#define TX_BUFFER_SIZE				32
+
+#define LINE_BUFFER_SIZE			30
 
 // For Xon flow.
 #define RX_FLOW_UP					96
-#define RX_FLOW_DOWN				32
+#define RX_FLOW_DOWN				64
 
 #define SET_XON						1
 #define XON_SET						2

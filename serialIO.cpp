@@ -57,6 +57,9 @@ volatile char tx_tail = 0;
 
 volatile bool to_read_flag = 0;
 
+char line_buffer[LINE_BUFFER_SIZE];
+char line_counter = 0;
+
 void serial_init(){
 	memset(&ss, 0, sizeof(ss));												// Init the serial state struct
 	ss.flow_state = SET_XON;												// Enables XON
@@ -76,33 +79,62 @@ void serial_init(){
 }
 
 bool serial_get_data(){
-//	serial_xon_xoff();														// Verifies the buffer size
 	ss.parser_state = PARSING_IDLE;
+	
+	while (rx_tail != rx_head){
 
-	if (planner_get_available() < 2){										// Manage the planner buffer queue.
-//		serial_send_message("no buffer available");
-		return false;
+		char c = rx_buffer[rx_tail];
+
+		if (c == '\n' || c == '\r'){
+			line_buffer[line_counter] = 0;
+			line_counter = 0;
+			serial_parse_data();
+			return true;
+
+		} else if (c >= 'A' && c <= 'Z'){
+			line_buffer[line_counter] = c;
+
+		} else if (c >= 'a' && c <= 'z'){
+			c -= 32;
+			line_buffer[line_counter] = c;
+
+		} else if (c >= '0' && c <= '9'){
+			line_buffer[line_counter] = c;
+
+		} else if (c ='-'){
+			line_buffer[line_counter] = c;
+
+		} else {
+			//Every other chars are cancelled.
+		}
+
+		line_counter++;
+		rx_incr(rx_tail);
+
+		char queue = _serial_rx_queue();								// Get queue size.
+
+		if ((queue < RX_FLOW_DOWN) && (ss.flow_state == XOFF_SET)){		// Test buffer size against size limit.
+			ss.flow_state = SET_XON;									// Set the new flow control state
+			UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
+		}
+
 	}
 
-	if (to_read_flag){
-//		_serial_append_string("-to read-");
-//		_serial_append_value(rx_head);
-//		_serial_append_value(rx_tail);
-		_serial_parse();
-	}
-
-	return true;
+	return false;
 
 }
 
 // This function is the entrance of a new string. It sets the parser_state for info or data
-// If the new string starts by anything else than start charcaters, it's discarded.
+// If the new string starts by anything else than start characters, it's discarded.
 void _serial_parse(){
+
+/*
 	if (rx_buffer[rx_tail] == '$'){
 		_serial_parse_cfg();
 	} else {
 		_serial_parse_data();
 	}
+	*/
 }
 
 /* this function parse the data string it receives
@@ -129,47 +161,43 @@ void _serial_parse(){
  * Then it calls _serial_record_values() to populates the planner buffer.
  */
 void _serial_parse_data(){
-	bool is_neg = false;
-	char in_byte = 0;
-	ss.parser_state = PARSING_VAR;
-	while (rx_tail != rx_head){
-		in_byte = rx_buffer[rx_tail];
 
-		char queue = _serial_rx_queue();								// Get queue size.
-
-		if ((queue < RX_FLOW_DOWN) && (ss.flow_state == XOFF_SET)){		// Test buffer size against size limit.
-			ss.flow_state = SET_XON;									// Set the new flow control state
-			UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
+	if (planner_get_available() < 1){										// Manage the planner buffer queue.
+//		serial_send_message("no buffer available");
+		return;
 	}
 
+	bool is_neg;
+	char c = 1;
+	char line_counter = 0;
+	ss.parser_state = PARSING_VAR;
+	while (c != 0){
+		c = line_buffer[line_counter];
 
 //		_serial_append_value(rx_head);
 //		_serial_append_value(rx_tail);
 
 		if (ss.parser_state == PARSING_VAR){
-			if ((in_byte >= 'a' && in_byte <= 'z') || (in_byte >= 'A' && in_byte <= 'Z')){
-				if (in_byte >= 'a' && in_byte <= 'z'){
-					in_byte -= 32;
-				}
-				ss.inVar = in_byte;
+			if (c >= 'A' && c <= 'Z'){
+				ss.inVar = c;
 				ss.inValue = 0;
 				is_neg = 0;
 				ss.parser_state = PARSING_VAR_OK;
 //					_serial_append_string(ss.inVar);
 			}
-			rx_incr(rx_tail);
+			line_counter++;
 
 		} else if (ss.parser_state == PARSING_VAR_OK){
 			ss.parser_state = PARSING_VALUE;
 
 		} else if (ss.parser_state == PARSING_VALUE){
-			if (in_byte >= '0' && in_byte <= '9'){
+			if (c >= '0' && c <= '9'){
 				ss.inValue *= 10;
-				ss.inValue += (in_byte - 48);
-				rx_incr(rx_tail);
-			} else if (in_byte =='-'){
+				ss.inValue += (c - 48);
+				line_counter++;
+			} else if (c =='-'){
 				is_neg = 1;
-				rx_incr(rx_tail);
+				line_counter++;
 //				_serial_append_string("is neg");
 			} else {
 				if (is_neg == 1){
@@ -177,12 +205,14 @@ void _serial_parse_data(){
 				}
 				_serial_record_pair();
 //				_serial_append_value(ss.inValue);
-				if ((in_byte >= 'a' && in_byte <= 'z') || (in_byte >= 'A' && in_byte <= 'Z')){
+/*
+				if (c >= 'A' && c <= 'Z'){
 					ss.parser_state = PARSING_VAR;
 //					_serial_append_string("parsing var");
 				} else {
-					rx_incr(rx_tail);
+					line_counter++;
 				}
+				*/
 			}
 
 		}
@@ -244,12 +274,14 @@ void _serial_record_values(){
 // Parse a cfg command.
 // Empty for know, excpet that it reads data in the RX buffer. Otherwise program block.
 void _serial_parse_cfg(){
+	/*
 	char in_byte = 0;
 	while (rx_tail != rx_head){
 		in_byte = rx_buffer[rx_tail];
 		rx_incr(rx_tail);
 	}
 	_serial_send_go();
+	*/
 }
 
 //This sends the go signal when Serial is able to receive
@@ -296,8 +328,13 @@ void serial_step(){
 
 // Serial interrupt init function. Set the registers according to settings values and needs.
 void _serial_interrupt_init(){
-	unsigned int ubr = CLOCK_SPEED/8/BAUDRATE-1;
+//	unsigned int ubr = CLOCK_SPEED/8/BAUDRATE-1;
+
+	unsigned int ubr = CLOCK_SPEED/(8L * BAUDRATE) - 1;
 	UCSR0A |= (1 << U2X0);
+//	unsigned int ubr = CLOCK_SPEED/(16L * BAUDRATE) - 1;
+//	UCSR0A &= ~(1 << U2X0);
+
 	cli();
 
 	UBRR0H = (ubr>>8);												// Set the baudrate register, high byte first, then low.
@@ -320,11 +357,7 @@ ISR(USART_RX_vect){
 	char head = rx_head;											// Copy the rx_head in a local var to preserve volatile.
 	rx_buffer[head] = UDR0;											// Copy UDR0 byte to buffer queue.
 
-	if (rx_buffer[head] == NL_CHAR){								// If EOL, set a flag that serial_get_data will read.
-		to_read_flag = 1;
-	} else if (rx_buffer[head] == XON_CHAR){						// Implement XON/XOFF for TX?
-	} else if (rx_buffer[head] == XOFF_CHAR){
-	}
+	to_read_flag = 1;
 
 	rx_incr(head);													// Increment buffer pointer.
 	rx_head = head;													// update buffer pointer.

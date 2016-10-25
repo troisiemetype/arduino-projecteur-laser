@@ -265,9 +265,9 @@ void driver_update_pos(){
 		ds.now[i] = db->pos[i];
 	}
 
-
 	ds.update = 0;
 
+	//Prepare the next pos.
 	dbp.run = db->nx;
 	dbp.available++;
 

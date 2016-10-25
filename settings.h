@@ -26,7 +26,7 @@
 
 // Serial settings
 //14400
-#define BAUDRATE				14400				// Defines the baudrate used for the serial
+#define BAUDRATE				115200				// Defines the baudrate used for the serial
 
 // I2C settings
 #define X_I2C_ADDR				0x62				// These addresses can changed accroding to the hardware DAC you use
@@ -42,8 +42,6 @@
 #define CLOCK_SPEED				16000000			// Frequency of the board
 #define ISR_FREQUENCY			200					// Frequency of the interrupt
 #define BEAT_FREQUENCY			0.5					// Frequency of the heartbeat
-
-#define WATCHDOG_TIMER			500					// Number of ISR interrupts whitout move before to stop the laser
 
 /*
 #define MOVE_CARTESIAN			0					// Used to test the move type in the driver ISR
