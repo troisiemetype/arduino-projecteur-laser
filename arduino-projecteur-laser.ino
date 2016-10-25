@@ -71,16 +71,16 @@ void loop(){
 	//send I2C if needed
 	driver_update_pos();
 
-	//manage heartbeat.
-	driver_heartbeat();
+	//Look for available data
+	serial_get_data();
 
 	//Compute positions if needed / possible.
 	driver_plan_pos();
 
-	//Look for available data
-	serial_get_data();
-
 	//Populates buffer if needed.
 	planner_plan_move();	
+
+	//manage heartbeat.
+	driver_heartbeat();
 	
 }

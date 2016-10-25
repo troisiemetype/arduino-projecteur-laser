@@ -70,7 +70,7 @@
 struct serialState{
 	char parser_state;								// Stocks the parser state. Used for knowing what to parse. See #defines above.
 	char parser_data_received;						// Data parsed mask. Set bit per bit, a bit vor a value.
-	char inVar;									// Stocks temporary var names before values are parsed and record.
+	char inVar;										// Stocks temporary var names before values are parsed and record.
 	long inValue;									// Stocks value, before they are recorded.
 
 	volatile char queue;							// Stocks the rx queue size when _serial_rx_queue is called.
@@ -87,11 +87,9 @@ struct serialState{
 
 void serial_init();
 bool serial_get_data();
-void _serial_parse();
 void _serial_parse_data();
 void _serial_record_pair();
 void _serial_record_values();
-void _serial_parse_cfg();
 void _serial_send_go();
 //void _serial_send_again();
 void serial_send_pair(String text, double value);
@@ -105,6 +103,5 @@ void _serial_append_value(double value);
 void _serial_append_nl();
 void _serial_append_byte(char data);
 void _serial_clear_rx_buffer();
-void _serial_flush_rx_buffer();
 
 #endif

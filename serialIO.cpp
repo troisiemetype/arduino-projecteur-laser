@@ -44,7 +44,6 @@
 #define tx_incr(i)	i = (i + 1)%TX_BUFFER_SIZE
 
 serialState ss;
-long baudrate = BAUDRATE;
 
 // defining buffers for serial RX and TX.
 char rx_buffer[RX_BUFFER_SIZE];
@@ -54,8 +53,6 @@ char rx_tail = 0;
 char tx_buffer[TX_BUFFER_SIZE];
 char tx_head = 0;
 volatile char tx_tail = 0;
-
-volatile bool to_read_flag = 0;
 
 char line_buffer[LINE_BUFFER_SIZE];
 char line_counter = 0;
@@ -78,19 +75,29 @@ void serial_init(){
 	serial_send_message("Liaison série initialisée.");
 }
 
+//This function is called from the main function.
+//If there are data in the rx buffer, it copies it into a line buffer.
+//That way the RX buffer is kept as empty as possible.
 bool serial_get_data(){
 	ss.parser_state = PARSING_IDLE;
 	
+	//while there is data in the RX buffer.
 	while (rx_tail != rx_head){
 
+		//Get the current char in rx buffer
 		char c = rx_buffer[rx_tail];
 
+//		serial_send_pair("parsing", c );
+		
+		//If the char is end of line, set a "flag" (that is, char = 0),
+		//initialize line pointer for next time, and call data parser
 		if (c == '\n' || c == '\r'){
 			line_buffer[line_counter] = 0;
 			line_counter = 0;
-			serial_parse_data();
+			rx_incr(rx_tail);
+			_serial_parse_data();
 			return true;
-
+		//Else chars are stored.
 		} else if (c >= 'A' && c <= 'Z'){
 			line_buffer[line_counter] = c;
 
@@ -105,59 +112,42 @@ bool serial_get_data(){
 			line_buffer[line_counter] = c;
 
 		} else {
-			//Every other chars are cancelled.
+			//Every other chars are ignored.
 		}
 
+		//increment line and rx buffer pointer
 		line_counter++;
 		rx_incr(rx_tail);
 
-		char queue = _serial_rx_queue();								// Get queue size.
-
-		if ((queue < RX_FLOW_DOWN) && (ss.flow_state == XOFF_SET)){		// Test buffer size against size limit.
-			ss.flow_state = SET_XON;									// Set the new flow control state
-			UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
+		//Verify if we can send an XON signal to computer.
+		//If yes, set a flag an enable TX interrupts.
+		char queue = _serial_rx_queue();
+		if ((queue < RX_FLOW_DOWN) && (ss.flow_state == XOFF_SET)){
+			ss.flow_state = SET_XON;
+			UCSR0B |= (1 << UDRIE0);
 		}
-
 	}
 
 	return false;
 
 }
 
-// This function is the entrance of a new string. It sets the parser_state for info or data
-// If the new string starts by anything else than start characters, it's discarded.
-void _serial_parse(){
-
-/*
-	if (rx_buffer[rx_tail] == '$'){
-		_serial_parse_cfg();
-	} else {
-		_serial_parse_data();
-	}
-	*/
-}
-
 /* this function parse the data string it receives
  * The string must formed like that:
  * I1X23Y45...
  * Each var (one letter) must be followed by its value.
+ * The line read has been prepared before, stripped for wrong chars, and terminat with char 0.
  * The loop turns while there is available data to read
- * The function is called by the serial parser above.
  * It's driven by parser states. For each state we should get precise chars.
- * If these chars are found, parser goes to th next state, and test chars again.
+ * If these chars are found, parser goes to the next state, and test chars again.
  * A normal loop should be:
  * PARSING_IDLE						We have just received a new data string.
  *
  * PARSING_VAR 			 			looking for alpha chars a-z, A-Z.
  *
- * PARSING_JSON_VAR_OK 				var was OK.
- *
- * PARSING_VALUE 					looking for number 0-9, a minus sign if number is negative, or char a-z, A-Z if new pair.
- *									if char a-z, A-Z, record the pair before to parse the next one.
- *
- * On each step, the next data char is tested against what it should be. If not found, their is an error and the loop stops.
- * If a pair (var + value) is obtained, _serial_record_pair is called, which stores the value in the serial singleton and sets a flag.
- * Last, if the state is PARSING_JSON_END, then it means the parsing was without problem.
+ * PARSING_VALUE 					looking for number 0-9, a minus sign if number is negative.
+ *									else, record the pair before to parse the next one.
+ * 
  * Then it calls _serial_record_values() to populates the planner buffer.
  */
 void _serial_parse_data(){
@@ -171,6 +161,7 @@ void _serial_parse_data(){
 	char c = 1;
 	char line_counter = 0;
 	ss.parser_state = PARSING_VAR;
+
 	while (c != 0){
 		c = line_buffer[line_counter];
 
@@ -182,13 +173,10 @@ void _serial_parse_data(){
 				ss.inVar = c;
 				ss.inValue = 0;
 				is_neg = 0;
-				ss.parser_state = PARSING_VAR_OK;
+				ss.parser_state = PARSING_VALUE;
 //					_serial_append_string(ss.inVar);
 			}
 			line_counter++;
-
-		} else if (ss.parser_state == PARSING_VAR_OK){
-			ss.parser_state = PARSING_VALUE;
 
 		} else if (ss.parser_state == PARSING_VALUE){
 			if (c >= '0' && c <= '9'){
@@ -204,26 +192,17 @@ void _serial_parse_data(){
 					ss.inValue = -ss.inValue;
 				}
 				_serial_record_pair();
+				ss.parser_state = PARSING_VAR;
 //				_serial_append_value(ss.inValue);
-/*
-				if (c >= 'A' && c <= 'Z'){
-					ss.parser_state = PARSING_VAR;
-//					_serial_append_string("parsing var");
-				} else {
-					line_counter++;
-				}
-				*/
 			}
 
 		}
 	}
-//	_serial_append_value(ss.id);
 //	_serial_append_nl();
 	_serial_record_values();
-	_serial_flush_rx_buffer();
+//	_serial_flush_rx_buffer();
 //	_serial_send_go();
-	ss.parser_state = PARSING_IDLE;
-	to_read_flag =0;
+//	to_read_flag =0;
 }
 
 void _serial_record_pair(){
@@ -267,21 +246,8 @@ void _serial_record_values(){
 		planner_set_buffer(ss.posX, ss.posY, ss.posL, ss.speed, ss.mode, ss.parser_data_received);	// Populates the buffer with the values received
 	}
 	ss.parser_data_received = 0;
-	ss.inVar="";
+	ss.inVar=' ';
 	ss.inValue=0;
-}
-
-// Parse a cfg command.
-// Empty for know, excpet that it reads data in the RX buffer. Otherwise program block.
-void _serial_parse_cfg(){
-	/*
-	char in_byte = 0;
-	while (rx_tail != rx_head){
-		in_byte = rx_buffer[rx_tail];
-		rx_incr(rx_tail);
-	}
-	_serial_send_go();
-	*/
 }
 
 //This sends the go signal when Serial is able to receive
@@ -357,8 +323,6 @@ ISR(USART_RX_vect){
 	char head = rx_head;											// Copy the rx_head in a local var to preserve volatile.
 	rx_buffer[head] = UDR0;											// Copy UDR0 byte to buffer queue.
 
-	to_read_flag = 1;
-
 	rx_incr(head);													// Increment buffer pointer.
 	rx_head = head;													// update buffer pointer.
 
@@ -432,12 +396,4 @@ void _serial_append_byte(char data){
 
 void _serial_clear_rx_buffer(){
 	rx_tail = rx_head;
-}
-
-void _serial_flush_rx_buffer(){
-	_serial_clear_rx_buffer();
-	to_read_flag = 0;
-
-//	ss.flow_state = SET_XON;									// Set the new flow control state
-//	UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
 }
