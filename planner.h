@@ -24,7 +24,7 @@
 #ifndef PLANNER_H
 #define PLANNER_H
 
-#define BUFFER_POOL_SIZE 8
+#define BUFFER_POOL_SIZE 12
 
 // this structure stores each point sent by computer to the program
 // TODO: TEST FIXPONT MATH TO TRY TO AVOID FLOAT AND DOUBLE.

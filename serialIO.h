@@ -98,13 +98,5 @@ void _serial_send_go();
 void serial_send_pair(String text, double value);
 void serial_send_message(String message);
 void serial_percent(long id);
-void serial_step();
-void _serial_interrupt_init();
-char _serial_rx_queue();
-void _serial_append_string(String data);
-void _serial_append_value(double value);
-void _serial_append_nl();
-void _serial_append_byte(char data);
-void _serial_clear_rx_buffer();
 
 #endif

@@ -45,33 +45,12 @@
 
 serialState ss;
 
-// defining buffers for serial RX and TX.
-char rx_buffer[RX_BUFFER_SIZE];
-volatile char rx_head = 0;
-char rx_tail = 0;
-
-char tx_buffer[TX_BUFFER_SIZE];
-char tx_head = 0;
-volatile char tx_tail = 0;
-
 char line_buffer[LINE_BUFFER_SIZE];
 char line_counter = 0;
 
 void serial_init(){
-	memset(&ss, 0, sizeof(ss));												// Init the serial state struct
-	ss.flow_state = SET_XON;												// Enables XON
-
-	//Initialization of RX and TX buffer.
-	for (int i=0; i<RX_BUFFER_SIZE; i++){
-		rx_buffer[i] = 0;
-	}
-
-	for (int i=0; i<TX_BUFFER_SIZE; i++){
-		tx_buffer[i] = 0;
-	}
-
-	_serial_interrupt_init();
-	
+	Serial.begin(115200);
+	ss.serial_state = 0;
 //	serial_send_message(F("Liaison série initialisée."));
 }
 
@@ -97,11 +76,11 @@ void serial_main(){
 //That way the RX buffer is kept as empty as possible.
 bool serial_get_data(){
 	//while there is data in the RX buffer.
-	while (rx_tail != rx_head){
+	while (Serial.available()){
 		ss.serial_state = SERIAL_EMPTY_RX;
 
 		//Get the current char in rx buffer
-		char c = rx_buffer[rx_tail];
+		char c = Serial.read();
 
 //		serial_send_pair("parsing", c );
 		
@@ -110,39 +89,36 @@ bool serial_get_data(){
 		if (c == '\n' || c == '\r'){
 			line_buffer[line_counter] = 0;
 			line_counter = 0;
-//			_serial_append_string("new line");
-			_serial_append_nl();
-			rx_incr(rx_tail);
+//			Serial.println("new line");
 			ss.serial_state = SERIAL_PARSE;
 			return true;
 		//Else chars are stored.
 		} else if (c >= 'A' && c <= 'Z'){
 			line_buffer[line_counter] = c;
-//			_serial_append_string("char: ");
-			_serial_append_byte(c);
-//			_serial_append_nl();
+//			Serial.print("char: ");
+//			Serial.write(c);
 
 		} else if (c >= 'a' && c <= 'z'){
 			c -= 32;
 			line_buffer[line_counter] = c;
-//			_serial_append_string("char: ");
+//			Serial.print("char: ");
 //			_serial_append_byte(c);
 //			_serial_append_nl();
 
 		} else if (c >= '0' && c <= '9'){
 			line_buffer[line_counter] = c;
-//			_serial_append_string("char: ");
-			_serial_append_byte(c);
+//			Serial.print("char: ");
+//			Serial.write(c);
 //			_serial_append_nl();
 
 		} else if (c =='-'){
 			line_buffer[line_counter] = c;
-//			_serial_append_string("char: ");
+//			Serial.print("char: ");
 //			_serial_append_byte(c);
 //			_serial_append_nl();
 
 		} else {
-//			_serial_append_string("discard char: ");
+//			Serial.print("discard char: ");
 //			_serial_append_byte(c);
 //			_serial_append_nl();
 			//Every other chars are ignored.
@@ -150,15 +126,6 @@ bool serial_get_data(){
 
 		//increment line and rx buffer pointer
 		line_counter++;
-		rx_incr(rx_tail);
-
-		//Verify if we can send an XON signal to computer.
-		//If yes, set a flag an enable TX interrupts.
-		char queue = _serial_rx_queue();
-		if ((queue < RX_FLOW_DOWN) && (ss.flow_state == XOFF_SET)){
-			ss.flow_state = SET_XON;
-			UCSR0B |= (1 << UDRIE0);
-		}
 	}
 
 	return false;
@@ -219,14 +186,14 @@ void _serial_parse_data(){
 			} else if (c =='-'){
 				is_neg = 1;
 				line_counter++;
-//				_serial_append_string("is neg");
+//				Serial.print("is neg");
 			} else {
 				if (is_neg == 1){
 					ss.inValue = -ss.inValue;
 				}
 				_serial_record_pair();
 				ss.serial_state = SERIAL_PARSE_VAR;
-//				_serial_append_value(ss.inValue);
+//				Serial.print(ss.inValue);
 			}
 
 		}
@@ -235,7 +202,7 @@ void _serial_parse_data(){
 //	_serial_append_nl();
 	_serial_record_values();
 	ss.serial_state = SERIAL_IDLE;
-//	_serial_send_go();
+	_serial_send_go();
 //	to_read_flag =0;
 }
 
@@ -248,7 +215,7 @@ void _serial_record_pair(){
 	if (ss.inVar == 'I'){
 		ss.parser_data_received |= 32;
 		ss.id = ss.inValue;
-		serial_send_pair("I", ss.id);
+//		serial_send_pair("I", ss.id);
 	} else if (ss.inVar == 'X'){
 		ss.parser_data_received |= 16;
 		ss.posX = ss.inValue;
@@ -291,8 +258,7 @@ void _serial_record_values(){
 //This sends the go signal when Serial is able to receive
 void _serial_send_go(){
 //	serial_send_pair("send", 1);
-	_serial_append_string("$s");
-	_serial_append_nl();
+	Serial.println("$s");
 }
 
 /*
@@ -304,134 +270,18 @@ void _serial_send_again(){
 
 // This function write a pair of data to Serial, formated in json
 void serial_send_pair(String name, double value){
-	_serial_append_string("{\"");
-	_serial_append_string(name);
-	_serial_append_string("\":");
-	_serial_append_value(value);
-	_serial_append_string("}");
-	_serial_append_nl();
+	Serial.print("{\"");
+	Serial.print(name);
+	Serial.print("\":");
+	Serial.print(value);
+	Serial.print("}");
 
 
 }
 
 // This function writes a simple message to Serial, formated in json
 void serial_send_message(String message){
-	_serial_append_string("{\"message\":\"");
-	_serial_append_string(message);
-	_serial_append_string("\"}");
-	_serial_append_nl();
-}
-
-/*
-// This function is for debugging purpose: it prints "step" on Serial. Used to "replace" code breakpoints.
-void serial_step(){
-	_serial_append_string("step");
-	_serial_append_nl();
-}
-*/
-
-// Serial interrupt init function. Set the registers according to settings values and needs.
-void _serial_interrupt_init(){
-//	unsigned int ubr = CLOCK_SPEED/8/BAUDRATE-1;
-
-	unsigned int ubr = CLOCK_SPEED/(8L * BAUDRATE) - 1;
-	UCSR0A |= (1 << U2X0);
-//	unsigned int ubr = CLOCK_SPEED/(16L * BAUDRATE) - 1;
-//	UCSR0A &= ~(1 << U2X0);
-
-	cli();
-
-	UBRR0H = (ubr>>8);												// Set the baudrate register, high byte first, then low.
-	UBRR0L = ubr;
-
-	// UCSR0A is not touched: it contains flags.
-	UCSR0B |= (1 << RXCIE0);										// Enable RX interrupts.
-//	UCSR0B |= (1 << TXCIE0);										// Enable TX interrupts.
-//	UCSR0B |= (1 << UDRIE0);										// Enable empty buffer interrupt. Enable when writing data.
-	UCSR0B |= (1 << RXEN0);											// Enable RX.
-	UCSR0B |= (1 << TXEN0);											// Enable TX.
-
-	sei();
-
-}
-
-// ISR RX interrupt.
-// This populates the RX buffer with incoming bytes.
-ISR(USART_RX_vect){
-	char head = rx_head;											// Copy the rx_head in a local var to preserve volatile.
-	rx_buffer[head] = UDR0;											// Copy UDR0 byte to buffer queue.
-
-	rx_incr(head);													// Increment buffer pointer.
-	rx_head = head;													// update buffer pointer.
-
-	char queue = _serial_rx_queue();
-
-	if ((queue > RX_FLOW_UP) && (ss.flow_state == XON_SET)){		// Test buffer size against size limit.
-		ss.flow_state = SET_XOFF;									// Set the new flow control state
-		UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
-	}
-
-}
-
-// ISR Empty buffer interrupt.
-// Sends data while their is to.
-ISR(USART_UDRE_vect){
-
-	char tail = tx_tail;											// Temp copy to limit volatile acces.	
-	// If flow control must change state, the xon/xoff state is sent before the TX buffer, that is skipped until next iteration.
-	if (ss.flow_state == SET_XOFF){
-		UDR0 = XOFF_CHAR;
-		ss.flow_state = XOFF_SET;									// Send XOFF.
-	} else if (ss.flow_state == SET_XON){
-		UDR0 = XON_CHAR;											// Send XON.
-		ss.flow_state = XON_SET;
-	} else {
-		UDR0 = tx_buffer[tail];										// Copy data buffer to TX data register.
-		tx_incr(tail);												// Increment buffer tail pointer.
-		tx_tail = tail;												// Copy back the temporary value to tx_tail.
-	}
-	if (tail == tx_head){											// if head == tail, then nothing left to send, disconnect interrupt.
-		UCSR0B &= ~(1 << UDRIE0);
-	}
-}
-
-
-char _serial_rx_queue(){
-	ss.queue = rx_head - rx_tail;
-	if (ss.queue < 0){
-		ss.queue += RX_BUFFER_SIZE;
-	}
-//	_serial_append_value(ss.queue);
-//	_serial_append_nl();
-	return ss.queue;
-}
-
-
-void _serial_append_string(String data){
-	int data_length = data.length();
-	for (int i=0; i<data_length; i++){
-		_serial_append_byte(data.charAt(i));
-	}
-}
-void _serial_append_value(double data){
-	String data_to_send = String(data, 3);
-	_serial_append_string(data_to_send);
-}
-
-void _serial_append_nl(){
-	_serial_append_byte(NL_CHAR);
-}
-
-void _serial_append_byte(char data){
-	while ((tx_head + 1) % TX_BUFFER_SIZE == tx_tail){
-		//Room to place some calls to function like planner_plan_move()
-	}
-	tx_buffer[tx_head] = data;
-	tx_incr(tx_head);
-
-	UCSR0B |= (1 << UDRIE0);
-}
-
-void _serial_clear_rx_buffer(){
-	rx_tail = rx_head;
+	Serial.print("{\"message\":\"");
+	Serial.print(message);
+	Serial.print("\"}");
 }
