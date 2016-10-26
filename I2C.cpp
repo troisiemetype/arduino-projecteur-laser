@@ -64,7 +64,7 @@ void I2C_init(){
 //	I2C_write('Y', 0xFFFF);										// Not needed: DAC initialize mid-pos with POR.
 	I2C_update();
 
-	serial_send_message("Liaison I2C initialisée.");
+//	serial_send_message(F("Liaison I2C initialisée."));
 
 
 

@@ -26,13 +26,13 @@
 #define SERIALIO_H
 
 #define RX_BUFFER_SIZE				128
-#define TX_BUFFER_SIZE				32
+#define TX_BUFFER_SIZE				64
 
 #define LINE_BUFFER_SIZE			30
 
 // For Xon flow.
-#define RX_FLOW_UP					96
-#define RX_FLOW_DOWN				64
+#define RX_FLOW_UP					62
+#define RX_FLOW_DOWN				32
 
 #define SET_XON						1
 #define XON_SET						2
@@ -47,35 +47,37 @@
 
 
 //define parser states / error
-#define PARSING_IDLE				0
-#define PARSING_VAR					1
-#define PARSING_VAR_OK				2
-#define PARSING_VALUE				3
-#define PARSING_VALUE_OK			4
-#define PARSING_PAIR				5
-#define PARSING_ERROR_INPUT			6
-#define PARSING_ERROR_START			7
-#define PARSING_ERROR_VAR			8
-#define PARSING_ERROR_VALUE			9
-#define PARSING_ERROR_PAIR			10
-#define PARSING_ERROR				11
+#define SERIAL_IDLE					0
+#define SERIAL_EMPTY_RX				1
+#define SERIAL_PARSE 				2
+#define SERIAL_PARSE_VAR			3
+#define SERIAL_PARSE_VAR_OK			4
+#define SERIAL_PARSE_VALUE			5
+#define SERIAL_PARSE_VALUE_OK		6
+#define SERIAL_PARSE_PAIR			7
+#define SERIAL_ERROR_INPUT			8
+#define SERIAL_ERROR_START			9
+#define SERIAL_ERROR_VAR			10
+#define SERIAL_ERROR_VALUE			11
+#define SERIAL_ERROR_PAIR			12
+#define SERIAL_ERROR				13
 
-#define PARSING_CFG_START			20
-#define PARSING_CFG_VAR				21
-#define PARSING_CFG_VALUE			22
-#define PARSING_CFG_END				23
+#define SERIAL_CFG_START			20
+#define SERIAL_CFG_VAR				21
+#define SERIAL_CFG_VALUE			22
+#define SERIAL_CFG_END				23
 
 // serial singleton. contains value defining the parser state,
 // stores values that have been parsed and not recorded yet.
 struct serialState{
-	char parser_state;								// Stocks the parser state. Used for knowing what to parse. See #defines above.
+	char serial_state;								// Stocks the parser state. Used for knowing what to parse. See #defines above.
 	char parser_data_received;						// Data parsed mask. Set bit per bit, a bit vor a value.
 	char inVar;										// Stocks temporary var names before values are parsed and record.
 	long inValue;									// Stocks value, before they are recorded.
 
 	volatile char queue;							// Stocks the rx queue size when _serial_rx_queue is called.
 
-//	long id;										// Stocks the vales received, if parsing has been successfull.
+	long id;										// Stocks the vales received, if parsing has been successfull.
 	int posX;
 	int posY;
 	int posL;
@@ -86,6 +88,7 @@ struct serialState{
 };
 
 void serial_init();
+void serial_main();
 bool serial_get_data();
 void _serial_parse_data();
 void _serial_record_pair();

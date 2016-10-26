@@ -72,17 +72,33 @@ void serial_init(){
 
 	_serial_interrupt_init();
 	
-	serial_send_message("Liaison série initialisée.");
+//	serial_send_message(F("Liaison série initialisée."));
+}
+
+void serial_main(){
+	switch (ss.serial_state){
+		case SERIAL_IDLE:
+			serial_get_data();
+			break;
+		case SERIAL_EMPTY_RX:
+			serial_get_data();
+			break;
+		case SERIAL_PARSE:
+			_serial_parse_data();
+			break;
+		default:
+			break;
+	}
+
 }
 
 //This function is called from the main function.
 //If there are data in the rx buffer, it copies it into a line buffer.
 //That way the RX buffer is kept as empty as possible.
 bool serial_get_data(){
-	ss.parser_state = PARSING_IDLE;
-	
 	//while there is data in the RX buffer.
 	while (rx_tail != rx_head){
+		ss.serial_state = SERIAL_EMPTY_RX;
 
 		//Get the current char in rx buffer
 		char c = rx_buffer[rx_tail];
@@ -94,24 +110,41 @@ bool serial_get_data(){
 		if (c == '\n' || c == '\r'){
 			line_buffer[line_counter] = 0;
 			line_counter = 0;
+//			_serial_append_string("new line");
+			_serial_append_nl();
 			rx_incr(rx_tail);
-			_serial_parse_data();
+			ss.serial_state = SERIAL_PARSE;
 			return true;
 		//Else chars are stored.
 		} else if (c >= 'A' && c <= 'Z'){
 			line_buffer[line_counter] = c;
+//			_serial_append_string("char: ");
+			_serial_append_byte(c);
+//			_serial_append_nl();
 
 		} else if (c >= 'a' && c <= 'z'){
 			c -= 32;
 			line_buffer[line_counter] = c;
+//			_serial_append_string("char: ");
+//			_serial_append_byte(c);
+//			_serial_append_nl();
 
 		} else if (c >= '0' && c <= '9'){
 			line_buffer[line_counter] = c;
+//			_serial_append_string("char: ");
+			_serial_append_byte(c);
+//			_serial_append_nl();
 
-		} else if (c ='-'){
+		} else if (c =='-'){
 			line_buffer[line_counter] = c;
+//			_serial_append_string("char: ");
+//			_serial_append_byte(c);
+//			_serial_append_nl();
 
 		} else {
+//			_serial_append_string("discard char: ");
+//			_serial_append_byte(c);
+//			_serial_append_nl();
 			//Every other chars are ignored.
 		}
 
@@ -141,11 +174,11 @@ bool serial_get_data(){
  * It's driven by parser states. For each state we should get precise chars.
  * If these chars are found, parser goes to the next state, and test chars again.
  * A normal loop should be:
- * PARSING_IDLE						We have just received a new data string.
+ * SERIAL_IDLE						We have just received a new data string.
  *
- * PARSING_VAR 			 			looking for alpha chars a-z, A-Z.
+ * SERIAL_PARSE_VAR 			 			looking for alpha chars a-z, A-Z.
  *
- * PARSING_VALUE 					looking for number 0-9, a minus sign if number is negative.
+ * SERIAL_PARSE_VALUE 					looking for number 0-9, a minus sign if number is negative.
  *									else, record the pair before to parse the next one.
  * 
  * Then it calls _serial_record_values() to populates the planner buffer.
@@ -160,25 +193,25 @@ void _serial_parse_data(){
 	bool is_neg;
 	char c = 1;
 	char line_counter = 0;
-	ss.parser_state = PARSING_VAR;
+	ss.serial_state = SERIAL_PARSE_VAR;
 
 	while (c != 0){
+
 		c = line_buffer[line_counter];
 
-//		_serial_append_value(rx_head);
-//		_serial_append_value(rx_tail);
-
-		if (ss.parser_state == PARSING_VAR){
+		if (ss.serial_state == SERIAL_PARSE_VAR){
 			if (c >= 'A' && c <= 'Z'){
 				ss.inVar = c;
 				ss.inValue = 0;
 				is_neg = 0;
-				ss.parser_state = PARSING_VALUE;
-//					_serial_append_string(ss.inVar);
+				ss.serial_state = SERIAL_PARSE_VALUE;
+//				_serial_append_byte(ss.inVar);
+//				_serial_append_nl();
 			}
+
 			line_counter++;
 
-		} else if (ss.parser_state == PARSING_VALUE){
+		} else if (ss.serial_state == SERIAL_PARSE_VALUE){
 			if (c >= '0' && c <= '9'){
 				ss.inValue *= 10;
 				ss.inValue += (c - 48);
@@ -192,15 +225,16 @@ void _serial_parse_data(){
 					ss.inValue = -ss.inValue;
 				}
 				_serial_record_pair();
-				ss.parser_state = PARSING_VAR;
+				ss.serial_state = SERIAL_PARSE_VAR;
 //				_serial_append_value(ss.inValue);
 			}
 
 		}
 	}
+
 //	_serial_append_nl();
 	_serial_record_values();
-//	_serial_flush_rx_buffer();
+	ss.serial_state = SERIAL_IDLE;
 //	_serial_send_go();
 //	to_read_flag =0;
 }
@@ -211,7 +245,11 @@ void _serial_record_pair(){
 // Sets a flag.
 // Records value.
 
-	if (ss.inVar == 'X'){
+	if (ss.inVar == 'I'){
+		ss.parser_data_received |= 32;
+		ss.id = ss.inValue;
+		serial_send_pair("I", ss.id);
+	} else if (ss.inVar == 'X'){
 		ss.parser_data_received |= 16;
 		ss.posX = ss.inValue;
 //		serial_send_pair("X", ss.posX);
@@ -243,7 +281,7 @@ void _serial_record_pair(){
 void _serial_record_values(){
 	if (ss.parser_data_received != 0){
 //		serial_send_message("populates buffer");
-		planner_set_buffer(ss.posX, ss.posY, ss.posL, ss.speed, ss.mode, ss.parser_data_received);	// Populates the buffer with the values received
+		planner_set_buffer(ss.id, ss.posX, ss.posY, ss.posL, ss.speed, ss.mode, ss.parser_data_received);	// Populates the buffer with the values received
 	}
 	ss.parser_data_received = 0;
 	ss.inVar=' ';
@@ -284,13 +322,13 @@ void serial_send_message(String message){
 	_serial_append_nl();
 }
 
-
-// This function is for debugging purpose: it prints "step" on Serial. Used to replace code breakpoints.
+/*
+// This function is for debugging purpose: it prints "step" on Serial. Used to "replace" code breakpoints.
 void serial_step(){
 	_serial_append_string("step");
 	_serial_append_nl();
 }
-
+*/
 
 // Serial interrupt init function. Set the registers according to settings values and needs.
 void _serial_interrupt_init(){

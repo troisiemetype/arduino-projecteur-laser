@@ -61,7 +61,7 @@ void driver_init(){
 	driver_init_buffer();
 	driver_interrupt_init();
 
-	serial_send_message("Driver initialisé.");
+//	serial_send_message(F("Driver initialisé."));
 
 }
 

@@ -35,7 +35,8 @@ moveBufferPool mbp;
  */
 void planner_init(){
 	planner_init_buffer();
-	serial_send_message("Planner initialisé.");
+
+//	serial_send_message(F("Planner initialisé."));
 	
 }
 
@@ -96,7 +97,7 @@ void planner_set_next_buffer(byte buffer){
  * then it copies these parameters to the buffer
  * last, it steps up the write pointer and decrease the available counter
  */
-void planner_set_buffer(int posX, int posY, int posL, int speed, byte mode, byte set){
+void planner_set_buffer(long id, int posX, int posY, int posL, int speed, byte mode, byte set){
 	moveBuffer *bf = mbp.write;
 	moveBuffer *pv = bf->pv;
 
@@ -140,6 +141,7 @@ void planner_set_buffer(int posX, int posY, int posL, int speed, byte mode, byte
 	}
 
 
+	bf->id = id;
 	bf->pos[0] = posX;
 	bf->pos[1] = posY;
 	bf->pos[2] = posL;

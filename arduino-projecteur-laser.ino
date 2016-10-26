@@ -53,7 +53,7 @@ void setup(){
 	planner_init();
 	driver_init();
 
-	serial_send_message("Projecteur initialisé.");
+//	serial_send_message("Projecteur initialisé.");
 }
 
 void loop(){
@@ -72,7 +72,7 @@ void loop(){
 	driver_update_pos();
 
 	//Look for available data
-	serial_get_data();
+	serial_main();
 
 	//Compute positions if needed / possible.
 	driver_plan_pos();
