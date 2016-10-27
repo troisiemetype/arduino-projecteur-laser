@@ -20,7 +20,7 @@
 // serialIO.h
 // this part of the program deals with:
 // serial input: what is sent to the board, verifies that datas are correctly written, and populates the movement buffers
-// erial output: send back infos about position, so the program can know how much of the pattern has already be done
+// serial output: send back infos about position, so the program can know how much of the pattern has already be done
 
 #ifndef SERIALIO_H
 #define SERIALIO_H
@@ -47,31 +47,33 @@
 
 
 //define parser states / error
-#define SERIAL_IDLE					0
-#define SERIAL_EMPTY_RX				1
-#define SERIAL_PARSE 				2
-#define SERIAL_PARSE_VAR			3
-#define SERIAL_PARSE_VAR_OK			4
-#define SERIAL_PARSE_VALUE			5
-#define SERIAL_PARSE_VALUE_OK		6
-#define SERIAL_PARSE_PAIR			7
-#define SERIAL_ERROR_INPUT			8
-#define SERIAL_ERROR_START			9
-#define SERIAL_ERROR_VAR			10
-#define SERIAL_ERROR_VALUE			11
-#define SERIAL_ERROR_PAIR			12
-#define SERIAL_ERROR				13
+#define PARSE_IDLE			0
+#define PARSE_VAR			1
+#define PARSE_VAR_OK		2
+#define PARSE_VALUE			3
+#define PARSE_VALUE_OK		4
+#define PARSE_PAIR			5
+#define ERROR_INPUT			6
+#define ERROR_START			7
+#define ERROR_VAR			8
+#define ERROR_VALUE			9
+#define ERROR_PAIR			10
+#define ERROR				11
 
-#define SERIAL_CFG_START			20
-#define SERIAL_CFG_VAR				21
-#define SERIAL_CFG_VALUE			22
-#define SERIAL_CFG_END				23
+#define CFG_START			20
+#define CFG_VAR				21
+#define CFG_VALUE			22
+#define CFG_END				23
 
 // serial singleton. contains value defining the parser state,
 // stores values that have been parsed and not recorded yet.
 struct serialState{
-	char serial_state;								// Stocks the parser state. Used for knowing what to parse. See #defines above.
-	char parser_data_received;						// Data parsed mask. Set bit per bit, a bit vor a value.
+	volatile int state;
+
+	int parser_state;
+	char parser_count;
+
+	int parser_data_received;
 	char inVar;										// Stocks temporary var names before values are parsed and record.
 	long inValue;									// Stocks value, before they are recorded.
 
@@ -88,9 +90,9 @@ struct serialState{
 };
 
 void serial_init();
-void serial_main();
-bool serial_get_data();
-void _serial_parse_data();
+int serial_main();
+int serial_get_data();
+int _serial_parse_data();
 void _serial_record_pair();
 void _serial_record_values();
 void _serial_send_go();

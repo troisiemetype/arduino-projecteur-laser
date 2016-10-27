@@ -1,3 +1,4 @@
+
 // Arduino laser projector
 /*
  * This program is intended to control a laser projector
@@ -38,6 +39,7 @@
 #include "serialIO.h"
 #include "driver.h"
 #include "settings.h"
+#include "system.h"
 
 //This two defines are used to increment buffer pointer.
 #define rx_incr(i)	i = (i + 1)%RX_BUFFER_SIZE
@@ -59,6 +61,8 @@ char line_counter = 0;
 
 void serial_init(){
 	memset(&ss, 0, sizeof(ss));												// Init the serial state struct
+	ss.state = SERIAL_IDLE;
+
 	ss.flow_state = SET_XON;												// Enables XON
 
 	//Initialization of RX and TX buffer.
@@ -75,98 +79,103 @@ void serial_init(){
 //	serial_send_message(F("Liaison série initialisée."));
 }
 
-void serial_main(){
-	switch (ss.serial_state){
-		case SERIAL_IDLE:
-			serial_get_data();
-			break;
-		case SERIAL_EMPTY_RX:
-			serial_get_data();
-			break;
-		case SERIAL_PARSE:
-			_serial_parse_data();
-			break;
-		default:
-			break;
+int serial_main(){
+
+	if (ss.state == SERIAL_IDLE){
+		return STATE_OK;
+	}
+//	_serial_append_string("serial state: ");
+//	_serial_append_value(ss.state);
+//	_serial_append_nl();
+
+	if (ss.state & SERIAL_PARSE){
+		return _serial_parse_data();
 	}
 
+	if (ss.state & SERIAL_RX){
+		return serial_get_data();
+	}
 }
 
 //This function is called from the main function.
 //If there are data in the rx buffer, it copies it into a line buffer.
 //That way the RX buffer is kept as empty as possible.
-bool serial_get_data(){
-	//while there is data in the RX buffer.
-	while (rx_tail != rx_head){
+int serial_get_data(){
 
-//		long debut = micros();
-
-		ss.serial_state = SERIAL_EMPTY_RX;
-
-		//Get the current char in rx buffer
-		char c = rx_buffer[rx_tail];
-
-//		serial_send_pair("parsing", c );
-		
-		//If the char is end of line, set a "flag" (that is, char = 0),
-		//initialize line pointer for next time, and call data parser
-		if (c == '\n' || c == '\r'){
-			line_buffer[line_counter] = 0;
-			line_counter = 0;
-//			_serial_append_string("new line");
-//			_serial_append_nl();
-			rx_incr(rx_tail);
-			ss.serial_state = SERIAL_PARSE;
-			return true;
-		//Else chars are stored.
-		} else if (c >= 'A' && c <= 'Z'){
-			line_buffer[line_counter] = c;
-//			_serial_append_string("char: ");
-//			_serial_append_byte(c);
-//			_serial_append_nl();
-
-		} else if (c >= 'a' && c <= 'z'){
-			c -= 32;
-			line_buffer[line_counter] = c;
-//			_serial_append_string("char: ");
-//			_serial_append_byte(c);
-//			_serial_append_nl();
-
-		} else if (c >= '0' && c <= '9'){
-			line_buffer[line_counter] = c;
-//			_serial_append_string("char: ");
-//			_serial_append_byte(c);
-//			_serial_append_nl();
-
-		} else if (c =='-'){
-			line_buffer[line_counter] = c;
-//			_serial_append_string("char: ");
-//			_serial_append_byte(c);
-//			_serial_append_nl();
-
-		} else {
-//			_serial_append_string("discard char: ");
-//			_serial_append_byte(c);
-//			_serial_append_nl();
-			//Every other chars are ignored.
-		}
-
-		//increment line and rx buffer pointer
-		line_counter++;
-		rx_incr(rx_tail);
-
-		//Verify if we can send an XON signal to computer.
-		//If yes, set a flag an enable TX interrupts.
-		char queue = _serial_rx_queue();
-		if ((queue < RX_FLOW_DOWN) && (ss.flow_state == XOFF_SET)){
-			ss.flow_state = SET_XON;
-			UCSR0B |= (1 << UDRIE0);
-		}
-//		_serial_append_value(micros() - debut);
-//		_serial_append_nl();
+	if (rx_tail == rx_head){
+		bit_false(ss.state, SERIAL_RX);
+		return STATE_NO_OP;
 	}
 
-	return false;
+//	long debut = micros();
+
+	//Get the current char in rx buffer
+	char c = rx_buffer[rx_tail];
+
+//	serial_send_pair("parsing", c );
+	
+	//If the char is end of line, set a "flag" (that is, char = 0),
+	//initialize line pointer for next time, and call data parser
+	if (c == '\n' || c == '\r'){
+		line_buffer[line_counter] = 0;
+		line_counter = 0;
+//		_serial_append_string("new line");
+//		_serial_append_nl();
+		rx_incr(rx_tail);
+
+		bit_false(ss.state, SERIAL_RX);
+		bit_true(ss.state, SERIAL_PARSE);
+		return STATE_OK;
+
+	//Else chars are stored.
+	} else if (c >= 'A' && c <= 'Z'){
+		line_buffer[line_counter] = c;
+//		_serial_append_string("char: ");
+//		_serial_append_byte(c);
+//		_serial_append_nl();
+
+	} else if (c >= 'a' && c <= 'z'){
+		c -= 32;
+		line_buffer[line_counter] = c;
+//		_serial_append_string("char: ");
+//		_serial_append_byte(c);
+//		_serial_append_nl();
+
+	} else if (c >= '0' && c <= '9'){
+		line_buffer[line_counter] = c;
+//		_serial_append_string("char: ");
+//		_serial_append_byte(c);
+//		_serial_append_nl();
+
+	} else if (c =='-'){
+		line_buffer[line_counter] = c;
+//		_serial_append_string("char: ");
+//		_serial_append_byte(c);
+//		_serial_append_nl();
+
+	} else {
+//		_serial_append_string("discard char: ");
+//		_serial_append_byte(c);
+//		_serial_append_nl();
+		//Every other chars are ignored.
+	}
+
+	//increment line and rx buffer pointer
+	line_counter++;
+	rx_incr(rx_tail);
+
+	//Verify if we can send an XON signal to computer.
+	//If yes, set a flag an enable TX interrupts.
+	char queue = _serial_rx_queue();
+	if ((queue < RX_FLOW_DOWN) && (ss.flow_state == XOFF_SET)){
+		ss.flow_state = SET_XON;
+		UCSR0B |= (1 << UDRIE0);
+	}
+//		_serial_append_value(micros() - debut);
+//		_serial_append_nl();
+
+	return STATE_ENTER_AGAIN;
+	
 
 }
 
@@ -188,65 +197,62 @@ bool serial_get_data(){
  * 
  * Then it calls _serial_record_values() to populates the planner buffer.
  */
-void _serial_parse_data(){
+int _serial_parse_data(){
 
-	if (planner_get_available() < 1){										// Manage the planner buffer queue.
+	if (planner_get_available() < 1){							// Manage the planner buffer queue.
 //		serial_send_message("no buffer available");
-		return;
+		return STATE_NO_OP;
 	}
 
 //	long debut = micros();
 
 	bool is_neg;
 	char c = 1;
-	char line_counter = 0;
-	ss.serial_state = SERIAL_PARSE_VAR;
+	ss.parser_state = PARSE_VAR;
 
-	while (c != 0){
+	while (1){
 
-		c = line_buffer[line_counter];
+		c = line_buffer[ss.parser_count];
 
-		if (ss.serial_state == SERIAL_PARSE_VAR){
+		if (c == 0){
+			ss.parser_count = 0;
+			_serial_record_values();
+			bit_false(ss.state, SERIAL_PARSE);
+			return STATE_OK;
+		}
+
+		if (ss.parser_state == PARSE_VAR){
 			if (c >= 'A' && c <= 'Z'){
 				ss.inVar = c;
 				ss.inValue = 0;
 				is_neg = 0;
-				ss.serial_state = SERIAL_PARSE_VALUE;
+				ss.parser_state = PARSE_VALUE;
 //				_serial_append_byte(ss.inVar);
 //				_serial_append_nl();
 			}
 
-			line_counter++;
+			ss.parser_count++;
 
-		} else if (ss.serial_state == SERIAL_PARSE_VALUE){
+		} else if (ss.parser_state == PARSE_VALUE){
 			if (c >= '0' && c <= '9'){
 				ss.inValue *= 10;
 				ss.inValue += (c - 48);
-				line_counter++;
+				ss.parser_count++;
 			} else if (c =='-'){
 				is_neg = 1;
-				line_counter++;
+				ss.parser_count++;
 //				_serial_append_string("is neg");
 			} else {
 				if (is_neg == 1){
 					ss.inValue = -ss.inValue;
 				}
-				_serial_record_pair();
-				ss.serial_state = SERIAL_PARSE_VAR;
 //				_serial_append_value(ss.inValue);
-			}
+				_serial_record_pair();
+				return STATE_ENTER_AGAIN;
 
+			}
 		}
 	}
-
-//	_serial_append_nl();
-	_serial_record_values();
-	ss.serial_state = SERIAL_IDLE;
-//	_serial_append_value(micros() - debut);
-//	_serial_append_nl();
-
-//	_serial_send_go();
-//	to_read_flag =0;
 }
 
 void _serial_record_pair(){
@@ -374,6 +380,8 @@ ISR(USART_RX_vect){
 
 	rx_incr(head);													// Increment buffer pointer.
 	rx_head = head;													// update buffer pointer.
+
+	bit_true(ss.state, SERIAL_RX);
 
 	char queue = _serial_rx_queue();
 

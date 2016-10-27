@@ -27,13 +27,17 @@
 #include "serialIO.h"
 #include "settings.h"
 #include "driver.h"
+#include "system.h"
 
-moveBufferPool mbp;
+plannerState ps;
+plannerBufferPool pbp;
 
 // initialisation function.
 /* Init the buffers in memory
  */
 void planner_init(){
+
+	ps.state = PLANNER_IDLE;
 	planner_init_buffer();
 
 //	serial_send_message(F("Planner initialisé."));
@@ -42,49 +46,66 @@ void planner_init(){
 
 //init the buffers in memory
 void planner_init_buffer(){
-	moveBuffer *pv;															// creates a pointer to buffer
+	plannerBuffer *pv;															// creates a pointer to buffer
 
-	memset(&mbp, 0, sizeof(mbp));											// Clears the buffer pool
+	memset(&pbp, 0, sizeof(pbp));											// Clears the buffer pool
 
-	mbp.write = &mbp.pool[0];												// sets pointers to write on the first item in the pool
-	mbp.run = &mbp.pool[0];													// Ditto run
-	mbp.queue = &mbp.pool[0];												// Ditto queue
-	mbp.available = BUFFER_POOL_SIZE;										// Sets the number of available buffers
+	pbp.write = &pbp.pool[0];												// sets pointers to write on the first item in the pool
+	pbp.run = &pbp.pool[0];													// Ditto run
+	pbp.queue = &pbp.pool[0];												// Ditto queue
+	pbp.available = BUFFER_POOL_SIZE;										// Sets the number of available buffers
 
-	pv = &mbp.pool[BUFFER_POOL_SIZE-1];										// Sets the pv pointer on the last buffer of the pool
+	pv = &pbp.pool[BUFFER_POOL_SIZE-1];										// Sets the pv pointer on the last buffer of the pool
 
 	for (byte i=0; i<BUFFER_POOL_SIZE; i++){								// For each buffer in the pool,
-		mbp.pool[i].pv = pv;												// Sets a pointer to the previous buffer
+		pbp.pool[i].pv = pv;												// Sets a pointer to the previous buffer
 		if (i<BUFFER_POOL_SIZE-1){											// And to the next buffer								
-			mbp.pool[i].nx = &mbp.pool[i+1];								// pointer is to the next buffer
+			pbp.pool[i].nx = &pbp.pool[i+1];								// pointer is to the next buffer
 		} else {															// If last iteration, next buffer is #0
-			mbp.pool[i].nx = &mbp.pool[0];
+			pbp.pool[i].nx = &pbp.pool[0];
 		}
-		pv = &mbp.pool[i];													// Prepare next iteration: current buffer is the previous of the next.
+		pv = &pbp.pool[i];													// Prepare next iteration: current buffer is the previous of the next.
+	}
+}
+
+int planner_main(){
+	if (ps.state == PLANNER_IDLE){
+		return STATE_OK;
+	}
+//	_serial_append_string("planner state: ");
+//	_serial_append_value(ps.state);
+//	_serial_append_nl();
+
+	if (ps.state & PLANNER_COMPUTE_BUF){
+		return planner_plan_move();
 	}
 }
 
 // This just gives how much buffers are available
 byte planner_get_available(){
-	return mbp.available;
+	return pbp.available;
+}
+
+bool planner_available(){
+	return (pbp.available == BUFFER_POOL_SIZE);
 }
 
 // This just gives a pointer to the run buffer
-moveBuffer* planner_get_run_buffer(){
-	return mbp.run;
+plannerBuffer* planner_get_run_buffer(){
+	return pbp.run;
 }
 
 // This function updates the buffer pool with the next buffer
 void planner_set_next_buffer(byte buffer){
 	switch(buffer){
 		case 0:																// write buffer
-			mbp.write = mbp.write->nx;
+			pbp.write = pbp.write->nx;
 			break;
 		case 1:																// queue buffer
-			mbp.queue = mbp.queue->nx;
+			pbp.queue = pbp.queue->nx;
 			break;
 		case 2:																// run buffer
-			mbp.run = mbp.run->nx;
+			pbp.run = pbp.run->nx;
 			break;
 		default:
 			break;
@@ -101,8 +122,8 @@ void planner_set_buffer(long id, int posX, int posY, int posL, int speed, byte m
 
 //	long debut = micros();
 
-	moveBuffer *bf = mbp.write;
-	moveBuffer *pv = bf->pv;
+	plannerBuffer *bf = pbp.write;
+	plannerBuffer *pv = bf->pv;
 
 	// Here we want to know which is the start position of this move.
 	// If the previous buffer is populated, the start position is the end position of this buffer, so we copy it
@@ -157,7 +178,10 @@ void planner_set_buffer(long id, int posX, int posY, int posL, int speed, byte m
 
 	// steps up the write pointer.
 	planner_set_next_buffer(0);
-	mbp.available--;
+	pbp.available--;
+
+	bit_true(ps.state, PLANNER_COMPUTE_BUF);
+
 //	_serial_append_value(micros() - debut);
 //	_serial_append_nl();
 
@@ -167,9 +191,9 @@ void planner_set_buffer(long id, int posX, int posY, int posL, int speed, byte m
 /* It does so by copying pv and nx pointers, do a memset (populates buffer with zeros) and copy back pv and nx pointers
  * It then increase the available counter
  */
-void planner_free_buffer(moveBuffer* bf){
-	moveBuffer *pv;
-	moveBuffer *nx;
+void planner_free_buffer(plannerBuffer* bf){
+	plannerBuffer *pv;
+	plannerBuffer *nx;
 
 	pv = bf->pv;
 	nx = bf->nx;
@@ -179,21 +203,29 @@ void planner_free_buffer(moveBuffer* bf){
 	bf->pv = pv;
 	bf->nx = nx;
 
-	mbp.available++;
+	pbp.available++;
 
 }
 
 // This function plans the move for a buffer
 /* It first get the pointer to the queue buffer
  */
-bool planner_plan_move(){
+int planner_plan_move(){
 
 //	long debut = micros();
 
-	moveBuffer *bf = mbp.queue;
+	plannerBuffer *bf = pbp.queue;
 //	serial_send_pair("bf->active", bf->active);
+	//Verify if the queue buffer has to be computed.
 	if (bf->compute == 1 || bf->active == 0){								// If compute == 1, the buffer has already been computed
-		return false;																// If Compute == 0, the buffer is empty
+		bit_false(ps.state, PLANNER_COMPUTE_BUF);
+		if(pbp.available >= BUFFER_POOL_SIZE){
+				//If no computing because of empty buffer pool, nothing
+				return STATE_NO_OP;															// If Compute == 0, the buffer is empty
+			} else {
+				//If no computing because eveything has already been computed, driver needs compute.
+				return STATE_ENTER_AGAIN;
+			} 
 	}
 
 	if (bf->mode != 0){														// Look at the type of move: O is fast (placement), else is calibrated
@@ -246,6 +278,8 @@ bool planner_plan_move(){
 
 //	_serial_append_value(micros() - debut);
 //	_serial_append_nl();
-
-	return true;
+	
+	if (planner_get_available() > 1){
+		return STATE_ENTER_AGAIN;
+	}
 }

@@ -41,6 +41,7 @@
 #include "I2C.h"
 #include "serialIO.h"
 #include "settings.h"
+#include "system.h"
 
 driverState ds;
 
@@ -48,6 +49,8 @@ driverBufferPool dbp;
 
 void driver_init(){
 	memset(&ds, 0, sizeof(ds));										// Init the driver state with 0
+
+	ds.state = DRIVER_IDLE;
 
 	ds.beat_count = 0;												// heartbeat values init.
 	ds.beat_max_idle = ISR_FREQUENCY / BEAT_FREQUENCY;				// Heartbeat duration.
@@ -146,53 +149,54 @@ ISR(TIMER1_COMPA_vect){
 	// Heartbeat calculation.
 	ds.beat_count++;
 
-	ds.update = 1;
+	bit_true(ds.state, DRIVER_UPDATE_POS);
 
 	//debug: ISR time mesure
 //	ds.isrLength = TCNT1 - debut;
 
 }
 
-// set or unset the led.
-void driver_heartbeat(){
-//	long debut = micros();
-	if (ds.beat_count >= ds.beat_max){
-		ds.beat_count = 0;
-		bool state = (PORTB & (1 << PB5));
-		if (state == 1){
-			PORTB &= ~(1 << PB5);
-		} else {
-			PORTB |= (1 << PB5);
-		}
+
+int driver_main(){
+	if (ds.state == DRIVER_IDLE){
+		return STATE_OK;
 	}
 
-	if (ds.moving){
-		ds.beat_max = ds.beat_max_driving;							// Led blink faster when moving.
-	} else {
-		ds.beat_max = ds.beat_max_idle;								// Led blink slow when idle.
+	if (planner_available()){
+		bit_true(ds.state, DRIVER_COMPUTE_BUF);
+	}
+	
+	if (ds.state & DRIVER_UPDATE_POS){
+		int state = driver_update_pos();
+		driver_laser();
+		return state;
 	}
 
-//	_serial_append_value(micros() - debut);
-//	_serial_append_nl();
+	if (ds.state & DRIVER_COMPUTE_BUF){
+		return driver_plan_pos();
+	}
 
 }
 
-void driver_plan_pos(){
+int driver_plan_pos(){
 	if (dbp.available < 1){
-		return;
+		return STATE_NO_OP;
 	}
 //	long debut = micros();
 	//Create pointers to the current planner buffer.
-	moveBuffer *bf = planner_get_run_buffer();
+	plannerBuffer *bf = planner_get_run_buffer();
 
 	//Verify there is a move to compute in the planner, else return.
 	if (bf->active == 0 || bf->compute == 0){
-		return;
+		bit_false(ds.state, DRIVER_COMPUTE_BUF);
+		return STATE_NO_OP;
 	}
+//	_serial_append_string("driver plan");
+//	_serial_append_nl();
 
 //	serial_send_message("driver plan");
 
-	//Get pointer to the next driver buffer
+	//Get pointer to the driver buffer
 	driverBuffer *db = dbp.queue;
 
 	//compute each of the axis.
@@ -223,20 +227,23 @@ void driver_plan_pos(){
 //	_serial_append_value(micros() - debut);
 //	_serial_append_nl();
 
+	if (dbp.available < DRIVER_POOL_SIZE){
+		bit_true(ds.state, DRIVER_COMPUTE_BUF);
+		return STATE_ENTER_AGAIN;
+	} else {
+		bit_false(ds.state, DRIVER_COMPUTE_BUF);
+		return STATE_OK;
+	}
+
 }
 
-void driver_update_pos(){
-	if (!ds.update){
-		return;
-	}
+int driver_update_pos(){
+
 //	long debut = micros();
 	// Verifies that there is movement
 	if ((ds.now[0] == ds.previous[0]) && (ds.now[1] == ds.previous[1])){
 		ds.moving = 0;
-	} else {
-		ds.moving = 1;
 	}
-
 	//Record the last sent position before to update.
 	for (int i=0; i<3; i++){
 		ds.previous[i] = ds.now[i];
@@ -249,19 +256,27 @@ void driver_update_pos(){
 
 	//Verifies there are positions to update.
 	if (dbp.available >= DRIVER_POOL_SIZE){
-		return;
+		bit_false(ds.state, DRIVER_UPDATE_POS);
+//		_serial_append_string("update quit");
+//		_serial_append_nl();
+		return STATE_NO_OP;
 	}
+
+//	_serial_append_string("driver update pos");
+//	_serial_append_nl();
 
 	//Get the current run buffer
 	driverBuffer *db = dbp.run;
 
 	//Send the new values to the I2C
 	if (db->pos[0] != ds.previous[0]){
+		ds.moving = 1;
 		unsigned int pos = db->pos[0] + DRIVER_OFFSET;
 		I2C_write('X', pos);
 	}
  
 	if (db->pos[1] != ds.previous[1]){
+		ds.moving = 1;
 		unsigned int pos = db->pos[1] + DRIVER_OFFSET;
 		I2C_write('Y', pos);
 	}
@@ -273,26 +288,53 @@ void driver_update_pos(){
 		ds.now[i] = db->pos[i];
 	}
 
-	ds.update = 0;
-
 	//Prepare the next pos.
 	dbp.run = db->nx;
 	dbp.available++;
 //	_serial_append_value(micros() - debut);
 //	_serial_append_nl();
 
+	bit_false(ds.state, DRIVER_UPDATE_POS);
+	return STATE_OK;
+
 }
 
 //update the laser output.
 //Out of the update function because of the need to cut it when not moving.
 void driver_laser(){
-	if(!ds.moving){
-		OCR2A = 0;
-	} else {
+	if(ds.moving){
+//		_serial_append_string("laser");
+//		_serial_append_nl();
 		OCR2A = ds.now[2];
+	} else {
+		OCR2A = 0;
 	}
 }
 
 double * driver_get_position(){
 	return ds.now;
+}
+
+// set or unset the led.
+void driver_heartbeat(){
+//	long debut = micros();
+	if (ds.beat_count >= ds.beat_max){
+		ds.beat_count = 0;
+		bool state = (PORTB & (1 << PB5));
+		if (state == 1){
+			PORTB &= ~(1 << PB5);
+		} else {
+			PORTB |= (1 << PB5);
+		}
+	}
+
+	if (ds.moving){
+		ds.beat_max = ds.beat_max_driving;							// Led blink faster when moving.
+	} else {
+		ds.beat_max = ds.beat_max_idle;								// Led blink slow when idle.
+	}
+
+//	_serial_append_value(micros() - debut);
+//	_serial_append_nl();
+
 }

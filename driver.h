@@ -33,13 +33,16 @@
 
 // This structure stores the state of the Driver
 struct driverState{
-	//Stores the current poition.
+	//Stores driver state.
+	volatile int state;
+
+	//Store the driver state
 	//Stores the previous prosition. Used to know if there is move.
 	double now[3];
 	double previous[3];
 
 	//Vars for the heartbeat led. It counts the ISR interrupts,
-	//and the current and maxe values for both modes.
+	//and the current and max values for both modes.
 	volatile unsigned int beat_count;
 	int beat_max;
 	int beat_max_idle;
@@ -47,8 +50,6 @@ struct driverState{
 
 	//Stores if the laser is moving
 	bool moving;
-
-	bool update;
 
 	//debug: get the ISR time length
 	volatile long isrLength;
@@ -77,8 +78,9 @@ void driver_init();
 void driver_init_buffer();
 void driver_interrupt_init();
 void driver_heartbeat();
-void driver_plan_pos();
-void driver_update_pos();
+int driver_main();
+int driver_plan_pos();
+int driver_update_pos();
 void driver_laser();
 double * driver_get_position();
 

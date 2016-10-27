@@ -36,11 +36,12 @@
 
 
 //includes
-#include "settings.h"
-#include "serialIO.h"
+#include "driver.h"
 #include "I2C.h"
 #include "planner.h"
-#include "driver.h"
+#include "serialIO.h"
+#include "settings.h"
+#include "system.h"
 
 long temps = 0;
 long temps_prec = 0;
@@ -48,6 +49,7 @@ long temps_prec = 0;
 void setup(){
 
 	//calling the init functions of all program parts
+	system_init();
 	serial_init();
 	I2C_init();
 	planner_init();
@@ -64,23 +66,6 @@ void loop(){
 	_serial_append_nl();
 	temps_prec = temps;
 */
-
-	//laser driver
-	driver_laser();
-
-	//send I2C if needed
-	driver_update_pos();
-
-	//Look for available data
-	serial_main();
-
-	//Compute positions if needed / possible.
-	driver_plan_pos();
-
-	//Populates buffer if needed.
-	planner_plan_move();	
-
-	//manage heartbeat.
-	driver_heartbeat();
+	system_main();
 	
 }
