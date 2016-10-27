@@ -155,6 +155,7 @@ ISR(TIMER1_COMPA_vect){
 
 // set or unset the led.
 void driver_heartbeat(){
+//	long debut = micros();
 	if (ds.beat_count >= ds.beat_max){
 		ds.beat_count = 0;
 		bool state = (PORTB & (1 << PB5));
@@ -171,13 +172,16 @@ void driver_heartbeat(){
 		ds.beat_max = ds.beat_max_idle;								// Led blink slow when idle.
 	}
 
+//	_serial_append_value(micros() - debut);
+//	_serial_append_nl();
+
 }
 
 void driver_plan_pos(){
 	if (dbp.available < 1){
 		return;
 	}
-
+//	long debut = micros();
 	//Create pointers to the current planner buffer.
 	moveBuffer *bf = planner_get_run_buffer();
 
@@ -205,8 +209,8 @@ void driver_plan_pos(){
 			db->pos[i] = bf->pos[i];
 		}
 		//Set the planner buffer to next, then free it.
-		planner_set_next_buffer(2);
-		planner_free_buffer(bf);
+//		planner_set_next_buffer(2);
+//		planner_free_buffer(bf);
 
 	} else {
 		bf->nowSteps++;
@@ -216,12 +220,16 @@ void driver_plan_pos(){
 	dbp.queue = db->nx;
 	dbp.available --;
 
+//	_serial_append_value(micros() - debut);
+//	_serial_append_nl();
+
 }
 
 void driver_update_pos(){
 	if (!ds.update){
 		return;
 	}
+//	long debut = micros();
 	// Verifies that there is movement
 	if ((ds.now[0] == ds.previous[0]) && (ds.now[1] == ds.previous[1])){
 		ds.moving = 0;
@@ -270,6 +278,8 @@ void driver_update_pos(){
 	//Prepare the next pos.
 	dbp.run = db->nx;
 	dbp.available++;
+//	_serial_append_value(micros() - debut);
+//	_serial_append_nl();
 
 }
 

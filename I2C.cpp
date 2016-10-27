@@ -73,6 +73,8 @@ void I2C_init(){
 // This writes a new value to one channel of the DAC.
 void I2C_write(char axe, int pos){
 
+//	long debut = micros();
+
 	switch (axe){
 		case 'X':
 			_addressByte = AD5665_DAC_A;
@@ -97,10 +99,17 @@ void I2C_write(char axe, int pos){
 	Wire.write(pos >> 8);
 	Wire.write(pos);
 	Wire.endTransmission();
+
+//	_serial_append_value(micros() - debut);
+//	_serial_append_nl();
+
 }
 
 // This updates all the DAC channels at once.
 void I2C_update(){
+
+//	long debut = micros();
+
 	_commandByte = (AD5665_UPDATE_N << 3);
 	_commandByte |= AD5665_DAC_ALL;
 
@@ -109,4 +118,8 @@ void I2C_update(){
 	Wire.write(0xFF);
 	Wire.write(0xFF);
 	Wire.endTransmission();
+
+//	_serial_append_value(micros() - debut);
+//	_serial_append_nl();
+
 }

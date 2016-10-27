@@ -98,6 +98,9 @@ void planner_set_next_buffer(byte buffer){
  * last, it steps up the write pointer and decrease the available counter
  */
 void planner_set_buffer(long id, int posX, int posY, int posL, int speed, byte mode, byte set){
+
+//	long debut = micros();
+
 	moveBuffer *bf = mbp.write;
 	moveBuffer *pv = bf->pv;
 
@@ -155,6 +158,8 @@ void planner_set_buffer(long id, int posX, int posY, int posL, int speed, byte m
 	// steps up the write pointer.
 	planner_set_next_buffer(0);
 	mbp.available--;
+//	_serial_append_value(micros() - debut);
+//	_serial_append_nl();
 
 }
 
@@ -182,6 +187,9 @@ void planner_free_buffer(moveBuffer* bf){
 /* It first get the pointer to the queue buffer
  */
 bool planner_plan_move(){
+
+//	long debut = micros();
+
 	moveBuffer *bf = mbp.queue;
 //	serial_send_pair("bf->active", bf->active);
 	if (bf->compute == 1 || bf->active == 0){								// If compute == 1, the buffer has already been computed
@@ -235,6 +243,9 @@ bool planner_plan_move(){
 */
 	bf->compute = 1;														// The buffer is marked as having been compute
 	planner_set_next_buffer(1);												// The queue index is step up
+
+//	_serial_append_value(micros() - debut);
+//	_serial_append_nl();
 
 	return true;
 }

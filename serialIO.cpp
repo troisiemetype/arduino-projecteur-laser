@@ -98,6 +98,9 @@ void serial_main(){
 bool serial_get_data(){
 	//while there is data in the RX buffer.
 	while (rx_tail != rx_head){
+
+//		long debut = micros();
+
 		ss.serial_state = SERIAL_EMPTY_RX;
 
 		//Get the current char in rx buffer
@@ -111,7 +114,7 @@ bool serial_get_data(){
 			line_buffer[line_counter] = 0;
 			line_counter = 0;
 //			_serial_append_string("new line");
-			_serial_append_nl();
+//			_serial_append_nl();
 			rx_incr(rx_tail);
 			ss.serial_state = SERIAL_PARSE;
 			return true;
@@ -119,7 +122,7 @@ bool serial_get_data(){
 		} else if (c >= 'A' && c <= 'Z'){
 			line_buffer[line_counter] = c;
 //			_serial_append_string("char: ");
-			_serial_append_byte(c);
+//			_serial_append_byte(c);
 //			_serial_append_nl();
 
 		} else if (c >= 'a' && c <= 'z'){
@@ -132,7 +135,7 @@ bool serial_get_data(){
 		} else if (c >= '0' && c <= '9'){
 			line_buffer[line_counter] = c;
 //			_serial_append_string("char: ");
-			_serial_append_byte(c);
+//			_serial_append_byte(c);
 //			_serial_append_nl();
 
 		} else if (c =='-'){
@@ -159,6 +162,8 @@ bool serial_get_data(){
 			ss.flow_state = SET_XON;
 			UCSR0B |= (1 << UDRIE0);
 		}
+//		_serial_append_value(micros() - debut);
+//		_serial_append_nl();
 	}
 
 	return false;
@@ -189,6 +194,8 @@ void _serial_parse_data(){
 //		serial_send_message("no buffer available");
 		return;
 	}
+
+//	long debut = micros();
 
 	bool is_neg;
 	char c = 1;
@@ -235,6 +242,9 @@ void _serial_parse_data(){
 //	_serial_append_nl();
 	_serial_record_values();
 	ss.serial_state = SERIAL_IDLE;
+//	_serial_append_value(micros() - debut);
+//	_serial_append_nl();
+
 //	_serial_send_go();
 //	to_read_flag =0;
 }
@@ -248,7 +258,7 @@ void _serial_record_pair(){
 	if (ss.inVar == 'I'){
 		ss.parser_data_received |= 32;
 		ss.id = ss.inValue;
-		serial_send_pair("I", ss.id);
+//		serial_send_pair("I", ss.id);
 	} else if (ss.inVar == 'X'){
 		ss.parser_data_received |= 16;
 		ss.posX = ss.inValue;
@@ -358,6 +368,7 @@ void _serial_interrupt_init(){
 // ISR RX interrupt.
 // This populates the RX buffer with incoming bytes.
 ISR(USART_RX_vect){
+//	long debut = TCNT1;
 	char head = rx_head;											// Copy the rx_head in a local var to preserve volatile.
 	rx_buffer[head] = UDR0;											// Copy UDR0 byte to buffer queue.
 
@@ -370,12 +381,16 @@ ISR(USART_RX_vect){
 		ss.flow_state = SET_XOFF;									// Set the new flow control state
 		UCSR0B |= (1 << UDRIE0);									// Set back UDRE ISR
 	}
+//	_serial_append_value(TCNT1 - debut);
+//	_serial_append_nl();
 
 }
 
 // ISR Empty buffer interrupt.
 // Sends data while their is to.
 ISR(USART_UDRE_vect){
+
+//	long debut = TCNT1;
 
 	char tail = tx_tail;											// Temp copy to limit volatile acces.	
 	// If flow control must change state, the xon/xoff state is sent before the TX buffer, that is skipped until next iteration.
@@ -393,6 +408,8 @@ ISR(USART_UDRE_vect){
 	if (tail == tx_head){											// if head == tail, then nothing left to send, disconnect interrupt.
 		UCSR0B &= ~(1 << UDRIE0);
 	}
+//	_serial_append_value(TCNT1 - debut);
+//	_serial_append_nl();
 }
 
 

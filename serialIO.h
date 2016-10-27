@@ -31,7 +31,7 @@
 #define LINE_BUFFER_SIZE			30
 
 // For Xon flow.
-#define RX_FLOW_UP					62
+#define RX_FLOW_UP					64
 #define RX_FLOW_DOWN				32
 
 #define SET_XON						1
