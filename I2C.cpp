@@ -60,8 +60,8 @@ void I2C_init(){
 	Wire.write(1);
 	Wire.endTransmission();
 
-//	I2C_write('X', 0x8000);										// and all axes at mid course
-//	I2C_write('Y', 0xFFFF);										// Not needed: DAC initialize mid-pos with POR.
+	I2C_write('X', 0x8000);										// and all axes at mid course
+	I2C_write('Y', 0x8000);										// Not needed: DAC initialize mid-pos with POR.
 	I2C_update();
 
 //	serial_send_message(F("Liaison I2C initialisée."));
