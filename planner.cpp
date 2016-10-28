@@ -86,8 +86,8 @@ byte planner_get_available(){
 	return pbp.available;
 }
 
-bool planner_available(){
-	return (pbp.available == BUFFER_POOL_SIZE);
+bool planner_computed(){
+	return pbp.computed;
 }
 
 // This just gives a pointer to the run buffer
@@ -205,6 +205,10 @@ void planner_free_buffer(plannerBuffer* bf){
 
 	pbp.available++;
 
+	if (pbp.available == BUFFER_POOL_SIZE){
+		pbp.computed = 0;
+	}
+
 }
 
 // This function plans the move for a buffer
@@ -273,13 +277,16 @@ int planner_plan_move(){
 	_serial_append_nl();
 	_serial_append_nl();
 */
+	pbp.computed = 1;
 	bf->compute = 1;														// The buffer is marked as having been compute
 	planner_set_next_buffer(1);												// The queue index is step up
 
+//	_serial_append_string("planner plan");
+//	_serial_append_nl();
 //	_serial_append_value(micros() - debut);
 //	_serial_append_nl();
 	
 	if (planner_get_available() > 1){
-		return STATE_ENTER_AGAIN;
+		return STATE_OK;
 	}
 }

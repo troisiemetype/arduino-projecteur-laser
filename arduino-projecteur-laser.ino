@@ -60,8 +60,8 @@ void setup(){
 
 void loop(){
 
-/*	//Debug: get the length of the main loop.
-	temps = micros();
+	//Debug: get the length of the main loop.
+/*	temps = micros();
 	_serial_append_value(temps - temps_prec);
 	_serial_append_nl();
 	temps_prec = temps;

@@ -65,6 +65,8 @@ struct plannerBufferPool {
 
 	byte available;									// How much buffers are available for write
 
+	bool computed;
+
 	plannerBuffer pool[BUFFER_POOL_SIZE];			// Hold the place for every buffer
 };
 
@@ -72,7 +74,7 @@ void planner_init();
 void planner_init_buffer();
 int planner_main();
 byte planner_get_available();
-bool planner_available();
+bool planner_computed();
 plannerBuffer* planner_get_run_buffer();
 void planner_set_next_buffer(byte buffer);
 void planner_set_buffer(long I, int posX, int posY, int posL, int speed, byte mode, byte set);

@@ -162,10 +162,9 @@ int driver_main(){
 		return STATE_OK;
 	}
 
-	if (planner_available()){
+	if (planner_computed()){
 		bit_true(ds.state, DRIVER_COMPUTE_BUF);
 	}
-	
 	if (ds.state & DRIVER_UPDATE_POS){
 		int state = driver_update_pos();
 		driver_laser();
@@ -213,8 +212,8 @@ int driver_plan_pos(){
 			db->pos[i] = bf->pos[i];
 		}
 		//Set the planner buffer to next, then free it.
-//		planner_set_next_buffer(2);
-//		planner_free_buffer(bf);
+		planner_set_next_buffer(2);
+		planner_free_buffer(bf);
 
 	} else {
 		bf->nowSteps++;
@@ -224,12 +223,14 @@ int driver_plan_pos(){
 	dbp.queue = db->nx;
 	dbp.available --;
 
+//	_serial_append_string("driver plan");
+//	_serial_append_nl();
 //	_serial_append_value(micros() - debut);
 //	_serial_append_nl();
 
 	if (dbp.available < DRIVER_POOL_SIZE){
 		bit_true(ds.state, DRIVER_COMPUTE_BUF);
-		return STATE_ENTER_AGAIN;
+		return STATE_OK;
 	} else {
 		bit_false(ds.state, DRIVER_COMPUTE_BUF);
 		return STATE_OK;
@@ -291,6 +292,8 @@ int driver_update_pos(){
 	//Prepare the next pos.
 	dbp.run = db->nx;
 	dbp.available++;
+//	_serial_append_string("driver update");
+//	_serial_append_nl();
 //	_serial_append_value(micros() - debut);
 //	_serial_append_nl();
 

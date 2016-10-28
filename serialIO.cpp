@@ -112,6 +112,8 @@ int serial_get_data(){
 	//Get the current char in rx buffer
 	char c = rx_buffer[rx_tail];
 
+//	_serial_append_string("serial rx");
+//	_serial_append_nl();
 //	serial_send_pair("parsing", c );
 	
 	//If the char is end of line, set a "flag" (that is, char = 0),
@@ -204,6 +206,8 @@ int _serial_parse_data(){
 		return STATE_NO_OP;
 	}
 
+//	_serial_append_string("serial parse");
+//	_serial_append_nl();
 //	long debut = micros();
 
 	bool is_neg;
