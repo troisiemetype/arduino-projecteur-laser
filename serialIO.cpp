@@ -121,8 +121,6 @@ int serial_get_data(){
 	if (c == '\n' || c == '\r'){
 		line_buffer[line_counter] = 0;
 		line_counter = 0;
-//		_serial_append_string("new line");
-//		_serial_append_nl();
 		rx_incr(rx_tail);
 
 		bit_false(ss.state, SERIAL_RX);
@@ -132,33 +130,18 @@ int serial_get_data(){
 	//Else chars are stored.
 	} else if (c >= 'A' && c <= 'Z'){
 		line_buffer[line_counter] = c;
-//		_serial_append_string("char: ");
-//		_serial_append_byte(c);
-//		_serial_append_nl();
 
 	} else if (c >= 'a' && c <= 'z'){
 		c -= 32;
 		line_buffer[line_counter] = c;
-//		_serial_append_string("char: ");
-//		_serial_append_byte(c);
-//		_serial_append_nl();
 
 	} else if (c >= '0' && c <= '9'){
 		line_buffer[line_counter] = c;
-//		_serial_append_string("char: ");
-//		_serial_append_byte(c);
-//		_serial_append_nl();
 
 	} else if (c =='-'){
 		line_buffer[line_counter] = c;
-//		_serial_append_string("char: ");
-//		_serial_append_byte(c);
-//		_serial_append_nl();
 
 	} else {
-//		_serial_append_string("discard char: ");
-//		_serial_append_byte(c);
-//		_serial_append_nl();
 		//Every other chars are ignored.
 	}
 
@@ -211,7 +194,7 @@ int _serial_parse_data(){
 //	long debut = micros();
 
 	bool is_neg;
-	char c = 1;
+	char c = 0;
 	ss.parser_state = PARSE_VAR;
 
 	while (1){
@@ -246,8 +229,8 @@ int _serial_parse_data(){
 					ss.inValue = -ss.inValue;
 				}
 //				_serial_append_nl();
-
 				_serial_record_pair();
+
 				if (c == 0){
 					ss.parser_count = 0;
 					_serial_record_values();
