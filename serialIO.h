@@ -83,7 +83,7 @@ struct serialState{
 	int posX;
 	int posY;
 	int posL;
-	unsigned int speed;
+	long speed;
 	char mode;
 
 	volatile char flow_state;						// Stocks the state of flow control. See #defines above for states.

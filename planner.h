@@ -41,20 +41,21 @@ struct plannerBuffer {
 
 	long id;
 	long pos[3];									// The position we must go to
-	unsigned int speed;								// Ditto speed. Applies to the curent movement. Galvo increments/second.
+	long speed;										// Ditto speed. Applies to the curent movement. Galvo increments/second.
 	byte mode;										// Stores the current mode: 0 = fast movement, else = calibrated movement
 
-	double current[3];								// Stores the instant position
+	//Test fixpoint
+	long current[3];								// Stores the instant position
 
 	// TODO: SEE WITH TESTS IF deltaTotal HAS TO BEE A DOUBLE INSTEAD OF AN UNSIGNED INT.
-	unsigned int deltaTotal;						// The delta between the start and the final position.
+	unsigned long deltaTotal;						// The delta between the start and the final position.
 	long delta[3];													
 
 	long steps;										// Stores the number ot steps for this move (== (delta / speed) * ISR_FREQUENCY)
 	volatile long nowSteps;
 
 	// TODO: TEST FIXPOINT MATH.
-	double incr[3];									// The increment it must goes forward on each step
+	long incr[3];									// The increment it must goes forward on each step
 };
 
 // this structure stores the states of the buffers
@@ -77,7 +78,7 @@ byte planner_get_available();
 bool planner_computed();
 plannerBuffer* planner_get_run_buffer();
 void planner_set_next_buffer(byte buffer);
-void planner_set_buffer(long I, int posX, int posY, int posL, int speed, byte mode, byte set);
+void planner_set_buffer(long I, long posX, long posY, long posL, long speed, byte mode, byte set);
 void planner_free_buffer(plannerBuffer * bf);
 int planner_plan_move();
 

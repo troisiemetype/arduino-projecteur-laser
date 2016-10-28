@@ -214,6 +214,7 @@ int driver_plan_pos(){
 		//Set the planner buffer to next, then free it.
 		planner_set_next_buffer(2);
 		planner_free_buffer(bf);
+//		_serial_append_value(db->pos[0] >> 8);
 
 	} else {
 		bf->nowSteps++;
@@ -272,13 +273,13 @@ int driver_update_pos(){
 	//Send the new values to the I2C
 	if (db->pos[0] != ds.previous[0]){
 		ds.moving = 1;
-		unsigned int pos = db->pos[0] + DRIVER_OFFSET;
+		unsigned int pos = (db->pos[0] >> 8) + DRIVER_OFFSET;
 		I2C_write('X', pos);
 	}
  
 	if (db->pos[1] != ds.previous[1]){
 		ds.moving = 1;
-		unsigned int pos = db->pos[1] + DRIVER_OFFSET;
+		unsigned int pos = (db->pos[1] >> 8) + DRIVER_OFFSET;
 		I2C_write('Y', pos);
 	}
 
@@ -308,13 +309,13 @@ void driver_laser(){
 	if(ds.moving){
 //		_serial_append_string("laser");
 //		_serial_append_nl();
-		OCR2A = ds.now[2];
+		OCR2A = ds.now[2] >> 8;
 	} else {
 		OCR2A = 0;
 	}
 }
 
-double * driver_get_position(){
+long * driver_get_position(){
 	return ds.now;
 }
 

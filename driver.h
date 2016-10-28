@@ -38,8 +38,9 @@ struct driverState{
 
 	//Store the driver state
 	//Stores the previous prosition. Used to know if there is move.
-	double now[3];
-	double previous[3];
+	//test fixpoint
+	long now[3];
+	long previous[3];
 
 	//Vars for the heartbeat led. It counts the ISR interrupts,
 	//and the current and max values for both modes.
@@ -61,7 +62,7 @@ struct driverBuffer{
 	struct driverBuffer *pv;
 	struct driverBuffer *nx;
 
-	double pos[3];
+	long pos[3];
 };
 
 //This is the buffer ring for position buffers.
@@ -82,6 +83,6 @@ int driver_main();
 int driver_plan_pos();
 int driver_update_pos();
 void driver_laser();
-double * driver_get_position();
+long * driver_get_position();
 
 #endif

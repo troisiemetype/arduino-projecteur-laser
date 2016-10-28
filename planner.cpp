@@ -118,7 +118,7 @@ void planner_set_next_buffer(byte buffer){
  * then it copies these parameters to the buffer
  * last, it steps up the write pointer and decrease the available counter
  */
-void planner_set_buffer(long id, int posX, int posY, int posL, int speed, byte mode, byte set){
+void planner_set_buffer(long id, long posX, long posY, long posL, long speed, byte mode, byte set){
 
 //	long debut = micros();
 
@@ -129,7 +129,7 @@ void planner_set_buffer(long id, int posX, int posY, int posL, int speed, byte m
 	// If the previous buffer is populated, the start position is the end position of this buffer, so we copy it
 	// If the previous buffer is empty, then we have to use the current position, that is stored in the driverState struct
 	if (pv->active == 0){													// verifies how is the buffer queue
-		double * position = driver_get_position();					// Get the driver state
+		long * position = driver_get_position();					// Get the driver state
 		for (int i=0; i<3; i++){
 			// If previous buffer is empty, set current[] as the current position
 			bf->current[i] = (double)position[i];
@@ -142,6 +142,15 @@ void planner_set_buffer(long id, int posX, int posY, int posL, int speed, byte m
 		}
 //		serial_send_pair("pos X départ mouvement = ", bf->current[0]);
 	}
+
+	posX = posX << 8;
+	posY = posY << 8;
+	posL = posL << 8;
+	speed = speed << 8;
+//	_serial_append_value(posX);
+//	_serial_append_nl();
+//	_serial_append_value(speed);
+//	_serial_append_nl();
 
 	// These tests verify if the value has been sent by the computer.
 	// A value that hasn't been sent by the computer program should be copy for the previous position, i.e.:
@@ -236,6 +245,8 @@ int planner_plan_move(){
 		for (int i=0; i<3; i++){											// Compute the delta between previous and goal position
 			bf->delta[i] = bf->pos[i] - bf->current[i];
 		}
+//	_serial_append_value(bf->delta[0]);
+//	_serial_append_nl();
 		bf->deltaTotal = sqrt(pow(bf->delta[0], 2) + pow(bf->delta[1], 2));	// Compute the length of the route
 //		serial_send_pair("delta", bf->deltaTotal);
 
@@ -245,14 +256,18 @@ int planner_plan_move(){
 
 		bf->steps = abs((double)bf->deltaTotal / (double)bf->speed) * ISR_FREQUENCY;		// Compute the number of steps according to the route, speed and ISR
 //		serial_send_pair("steps", bf->steps);
+//	_serial_append_value(bf->steps);
+//	_serial_append_nl();
 
 		if (bf->steps == 0){												// Steps cannot be 0. If it is, sets it to 1
 			bf->steps = 1;
 		}
 
 		for (int i = 0; i<3; i++){											// Compute the increment for each axe
-			bf->incr[i] = (double)bf->delta[i] / (double)bf->steps;
+			bf->incr[i] = bf->delta[i] / bf->steps;
 		}
+//	_serial_append_value(bf->incr[0]);
+//	_serial_append_nl();
 	} else {
 		//If the move type is fast move, the increment equals the new pos.
 		bf->steps = 1;

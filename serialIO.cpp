@@ -218,12 +218,6 @@ int _serial_parse_data(){
 
 		c = line_buffer[ss.parser_count];
 
-		if (c == 0){
-			ss.parser_count = 0;
-			_serial_record_values();
-			bit_false(ss.state, SERIAL_PARSE);
-			return STATE_OK;
-		}
 
 		if (ss.parser_state == PARSE_VAR){
 			if (c >= 'A' && c <= 'Z'){
@@ -238,6 +232,7 @@ int _serial_parse_data(){
 			ss.parser_count++;
 
 		} else if (ss.parser_state == PARSE_VALUE){
+//				_serial_append_byte(c);
 			if (c >= '0' && c <= '9'){
 				ss.inValue *= 10;
 				ss.inValue += (c - 48);
@@ -250,8 +245,15 @@ int _serial_parse_data(){
 				if (is_neg == 1){
 					ss.inValue = -ss.inValue;
 				}
-//				_serial_append_value(ss.inValue);
+//				_serial_append_nl();
+
 				_serial_record_pair();
+				if (c == 0){
+					ss.parser_count = 0;
+					_serial_record_values();
+					bit_false(ss.state, SERIAL_PARSE);
+					return STATE_OK;
+				}
 				return STATE_ENTER_AGAIN;
 
 			}
