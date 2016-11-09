@@ -22,8 +22,22 @@
 // Real time processing, and prioriry of events and functions.
 // 
 
+
+
 #ifndef SYSTEM_H
 #define SYSTEM_H
+
+
+#include <Arduino.h>
+
+#include "driver.h"
+#include "planner.h"
+#include "I2C.h"
+#include "io.h"
+#include "settings.h"
+#include "system.h"
+
+
 
 #define bit(n)						(1 << n)
 

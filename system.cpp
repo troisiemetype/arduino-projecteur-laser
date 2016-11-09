@@ -16,17 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
- 
 
-#include <Arduino.h>
-
-#include "driver.h"
-#include "planner.h"
-#include "I2C.h"
-#include "serialIO.h"
-#include "settings.h"
 #include "system.h"
-
 
 #define DISPATCH(function)			if (function == STATE_ENTER_AGAIN){return;}
 
@@ -40,7 +31,7 @@ void system_main(){
 
 	DISPATCH(planner_main());
 
-	DISPATCH(serial_main());
+	DISPATCH(io_main());
 
 	driver_heartbeat();
 }

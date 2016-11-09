@@ -38,8 +38,8 @@
 //includes
 #include "driver.h"
 #include "I2C.h"
+#include "io.h"
 #include "planner.h"
-#include "serialIO.h"
 #include "settings.h"
 #include "system.h"
 
@@ -50,20 +50,20 @@ void setup(){
 
 	//calling the init functions of all program parts
 	system_init();
-	serial_init();
+	driver_init();
+	io_init();
 	I2C_init();
 	planner_init();
-	driver_init();
 
-//	serial_send_message("Projecteur initialisé.");
+//	io_send_message("Projecteur initialisé.");
 }
 
 void loop(){
 
 	//Debug: get the length of the main loop.
 /*	temps = micros();
-	_serial_append_value(temps - temps_prec);
-	_serial_append_nl();
+	_io_append_value(temps - temps_prec);
+	_io_append_nl();
 	temps_prec = temps;
 */
 	system_main();

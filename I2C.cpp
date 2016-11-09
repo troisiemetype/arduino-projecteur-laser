@@ -26,13 +26,7 @@
  * Then I2C_update can update all the channels at once.
  */
 
-#include <Arduino.h>
-
 #include "I2C.h"
-#include "settings.h"
-#include "serialIO.h"
-#include "driver.h"
-#include <Wire.h>
 
 char _I2C_address;
 char _commandByte;
@@ -64,7 +58,7 @@ void I2C_init(){
 	I2C_write('Y', 0x8000);										// Not needed: DAC initialize mid-pos with POR.
 	I2C_update();
 
-//	serial_send_message(F("Liaison I2C initialisée."));
+//	io_send_message(F("Liaison I2C initialisée."));
 
 
 
@@ -78,11 +72,11 @@ void I2C_write(char axe, int pos){
 	switch (axe){
 		case 'X':
 			_addressByte = AD5665_DAC_A;
-			if(INVERT_X){pos = -pos;}
+//			if(INVERT_X){pos = -pos;}
 			break;
 		case 'Y':
 			_addressByte = AD5665_DAC_B;
-			if(INVERT_Y){pos = -pos;}
+//			if(INVERT_Y){pos = -pos;}
 			break;
 		case 'L':
 			_addressByte = AD5665_DAC_C;
@@ -100,8 +94,8 @@ void I2C_write(char axe, int pos){
 	Wire.write(pos);
 	Wire.endTransmission();
 
-//	_serial_append_value(micros() - debut);
-//	_serial_append_nl();
+//	_io_append_value(micros() - debut);
+//	_io_append_nl();
 
 }
 
@@ -119,7 +113,7 @@ void I2C_update(){
 	Wire.write(0xFF);
 	Wire.endTransmission();
 
-//	_serial_append_value(micros() - debut);
-//	_serial_append_nl();
+//	_io_append_value(micros() - debut);
+//	_io_append_nl();
 
 }

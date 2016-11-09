@@ -21,10 +21,21 @@
 // This part of the program reads each point that is received, buffers it and calculate every point of the route.
 // Once all is done, buffers are used by the driver program to control the galvos
 
+
+
 #ifndef PLANNER_H
 #define PLANNER_H
 
-#define BUFFER_POOL_SIZE 8
+#include <Arduino.h>
+
+#include "planner.h"
+#include "io.h"
+#include "settings.h"
+#include "driver.h"
+#include "system.h"
+
+
+#define BUFFER_POOL_SIZE 64
 
 struct plannerState{
 	int state;

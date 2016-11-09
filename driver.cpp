@@ -33,19 +33,13 @@
  * We also use TIMER 2 to generate the PWM output of the laser intensity.
  */
 
-#include <Arduino.h>
-#include <math.h>
-
 #include "driver.h"
-#include "planner.h"
-#include "I2C.h"
-#include "serialIO.h"
-#include "settings.h"
-#include "system.h"
 
 driverState ds;
 
 driverBufferPool dbp;
+
+bool ledState = 0;
 
 void driver_init(){
 	memset(&ds, 0, sizeof(ds));										// Init the driver state with 0
@@ -53,22 +47,25 @@ void driver_init(){
 	ds.state = DRIVER_IDLE;
 
 	ds.beat_count = 0;												// heartbeat values init.
-	ds.beat_max_idle = ISR_FREQUENCY / BEAT_FREQUENCY;				// Heartbeat duration.
+	ds.beat_max_idle = ISR_FREQUENCY / 2 / BEAT_FREQUENCY;				// Heartbeat duration.
 	ds.beat_max_driving = ds.beat_max_idle / 4;
 
 	ds.beat_max = ds.beat_max_idle;
 
-	DDRB |= (1 << PB3) | (1 << PB5);								// Set pins 11 (laser) and 13 (led) as outputs
-	PORTB &= ~(1 << PB5);											// Unset pin 13
+//TODO: find the right port for laser PWM.
+//	DDRB |= (1 << PB3) | (1 << PB5);								// Set pins 11 (laser) and 13 (led) as outputs
+//	PORTB &= ~(1 << PB5);											// Unset pin 13
+	pinMode(13, OUTPUT);
 	
-	driver_init_buffer();
-	driver_interrupt_init();
+	_driver_buffer_init();
+	_driver_timer_init();
+	_driver_pwm_init();
 
-//	serial_send_message(F("Driver initialisé."));
+//	io_send_message(F("Driver initialisé."));
 
 }
 
-void driver_init_buffer(){
+void _driver_buffer_init(){
 	driverBuffer *pv;															// creates a pointer to buffer
 
 	memset(&dbp, 0, sizeof(dbp));											// Clears the buffer pool
@@ -91,7 +88,7 @@ void driver_init_buffer(){
 
 }
 
-// This function set up the TIMER 1 and TIMER 2
+// This function set up the timer for main interrupt
 /* Is sets up the TIMER 1 according to the settings (IC frequency and wanted update move frequency)
  * The Timer is set to CTC, that is generating an interrupt, and sets to 0 on compare match.
  * It can switch between no prescalling and a 1/8 prescalle, so the update frequency can be set between 16MHz and 30Hz
@@ -99,65 +96,57 @@ void driver_init_buffer(){
  *
  * 
  */
-void driver_interrupt_init(){
-	cli();															// Cancel interrupts during set up
+void _driver_timer_init(){
 
-	// Setup for TIMER 1
-	TCCR1A = 0;														// Initialisation registers
-	TCCR1B = 0;
-	TCNT1 = 0;
+	pmc_set_writeprotect(false);
+	pmc_enable_periph_clk(TIMER_IRQ);
 
-	long isr_time = CLOCK_SPEED / ISR_FREQUENCY;
+	TC_Configure(TIMER_N, TIMER_CHANNEL,
+		TC_CMR_WAVE |
+		TC_CMR_WAVSEL_UP_RC |
+		TC_CMR_TCCLKS_TIMER_CLOCK1);
+	uint32_t rc = CLOCK_FREQUENCY / 2 / ISR_FREQUENCY;
+	TC_SetRC(TIMER_N, TIMER_CHANNEL, rc);
 
+	TIMER_N->TC_CHANNEL[TIMER_CHANNEL].TC_IDR = ~0;
+	TIMER_N->TC_CHANNEL[TIMER_CHANNEL].TC_IER = TC_IER_CPCS;
 
-	if (isr_time > 0xffff){											// verifies the prescalling factor
-		OCR1A = isr_time / 8;										// Prescale
-		TCCR1B |= (1 << CS11);
-		ds.beat_max_idle /= 8;
-		ds.beat_max_driving /= 8;
-	} else {
-		OCR1A = isr_time;											// No prescale
-		TCCR1B |= (1 << CS10);
-	}
+	TC_Start(TIMER_N, TIMER_CHANNEL);
 
-	TCCR1B |= (1 << WGM12);											// Set TIMER 1 on CTC mode
-	TIMSK1 |= (1 << OCIE1A);										// Enables output compare A
+	NVIC_EnableIRQ(TIMER_IRQ);
+}
 
-	// Setup for TIMER 2
-	
-	TCCR2A = 0;														// Initialisation registers
-	TCCR2B = 0;
-	TCNT2 = 0;
-	OCR2A = 0;
-// Problem with fast PWM: When OCR2A is set to 0, there is a narrow spike at the timer overflow,
-// so the output is never totally shut, that causes the laser to be always on.
-//	TCCR2A |= (1 << COM2A1) | (1 << WGM21) | (1 << WGM20);			// Clear OC2A on compare match, fast PWM
-//	TCCR2B |= (1 << CS22) | (1 << CS21);							// prescaller 256
-	TCCR2A |= (1 << COM2A1) | (1 << WGM20);							// Clear OC2A on up-counting compare match, phase correct PWM
-	TCCR2B |= (1 << CS21);											// no prescaller
-	
+void _driver_pwm_init(){
 
-	sei();															// Enable interrupt again
+	pmc_set_writeprotect(false);
+	pmc_enable_periph_clk(PWM_IRQn);
+//	pmc_enable_periph_clk(PIOC);
 
+	PWMC_ConfigureClocks(0, 0, CLOCK_FREQUENCY);
+
+	//Set pin 9 for the laser
+	PIO_Configure(PIOC, PIO_PERIPH_B, PIO_PC21B_PWML4, PIO_DEFAULT);
+
+	PWMC_ConfigureChannel(PWM, 4, PWM_CMR_CPRE_MCK_DIV_1024, 0, 0);
+	PWMC_SetPeriod(PWM, 4, 255);
+	PWMC_SetDutyCycle(PWM, 4, 0);
+
+	PWMC_EnableChannel(PWM, 4);
 }
 
 // The ISR sets a flag when position needs to be updated.
-ISR(TIMER1_COMPA_vect){
-	// Debug: ISR time mesure
-//	long debut = TCNT1;
+void TC0_Handler(void){
 
-	// Heartbeat calculation.
+	TC_GetStatus(TIMER_N, TIMER_CHANNEL);
+
 	ds.beat_count++;
 
 	bit_true(ds.state, DRIVER_UPDATE_POS);
-
-	//debug: ISR time mesure
-//	ds.isrLength = TCNT1 - debut;
-
 }
 
 
 int driver_main(){
+//	io_send_message("driver main");
 	if (ds.state == DRIVER_IDLE){
 		return STATE_OK;
 	}
@@ -165,19 +154,20 @@ int driver_main(){
 	if (planner_computed()){
 		bit_true(ds.state, DRIVER_COMPUTE_BUF);
 	}
+
 	if (ds.state & DRIVER_UPDATE_POS){
-		int state = driver_update_pos();
-		driver_laser();
+		int state = _driver_update_pos();
+		_driver_laser();
 		return state;
 	}
 
 	if (ds.state & DRIVER_COMPUTE_BUF){
-		return driver_plan_pos();
+		return _driver_plan_pos();
 	}
 
 }
 
-int driver_plan_pos(){
+int _driver_plan_pos(){
 	if (dbp.available < 1){
 		return STATE_NO_OP;
 	}
@@ -190,10 +180,10 @@ int driver_plan_pos(){
 		bit_false(ds.state, DRIVER_COMPUTE_BUF);
 		return STATE_NO_OP;
 	}
-//	_serial_append_string("driver plan");
-//	_serial_append_nl();
+//	_io_append_string("driver plan");
+//	_io_append_nl();
 
-//	serial_send_message("driver plan");
+//	io_send_message("driver plan");
 
 	//Get pointer to the driver buffer
 	driverBuffer *db = dbp.queue;
@@ -214,7 +204,7 @@ int driver_plan_pos(){
 		//Set the planner buffer to next, then free it.
 		planner_set_next_buffer(2);
 		planner_free_buffer(bf);
-//		_serial_append_value(db->pos[0] >> 8);
+//		_io_append_value(db->pos[0] >> 8);
 
 	} else {
 		bf->nowSteps++;
@@ -224,10 +214,10 @@ int driver_plan_pos(){
 	dbp.queue = db->nx;
 	dbp.available --;
 
-//	_serial_append_string("driver plan");
-//	_serial_append_nl();
-//	_serial_append_value(micros() - debut);
-//	_serial_append_nl();
+//	_io_append_string("driver plan");
+//	_io_append_nl();
+//	_io_append_value(micros() - debut);
+//	_io_append_nl();
 
 	if (dbp.available < DRIVER_POOL_SIZE){
 		bit_true(ds.state, DRIVER_COMPUTE_BUF);
@@ -239,7 +229,7 @@ int driver_plan_pos(){
 
 }
 
-int driver_update_pos(){
+int _driver_update_pos(){
 
 //	long debut = micros();
 	// Verifies that there is movement
@@ -253,19 +243,21 @@ int driver_update_pos(){
 
 	//Debug: display the length of the driver isr.
 	//Check to uncomment mesurings in the ISR, and var def in driver.h
-//	serial_send_pair("ticks ISR:", ds.isrLength);
+//	io_send_pair("ticks ISR:", ds.isrLength);
 
+
+	I2C_update();
 
 	//Verifies there are positions to update.
 	if (dbp.available >= DRIVER_POOL_SIZE){
 		bit_false(ds.state, DRIVER_UPDATE_POS);
-//		_serial_append_string("update quit");
-//		_serial_append_nl();
+//		_io_append_string("update quit");
+//		_io_append_nl();
 		return STATE_NO_OP;
 	}
 
-//	_serial_append_string("driver update pos");
-//	_serial_append_nl();
+//	_io_append_string("driver update pos");
+//	_io_append_nl();
 
 	//Get the current run buffer
 	driverBuffer *db = dbp.run;
@@ -283,7 +275,6 @@ int driver_update_pos(){
 		I2C_write('Y', pos);
 	}
 
-	I2C_update();
 
 	//Record the new current position.
 	for (int i=0; i<3; i++){
@@ -293,10 +284,10 @@ int driver_update_pos(){
 	//Prepare the next pos.
 	dbp.run = db->nx;
 	dbp.available++;
-//	_serial_append_string("driver update");
-//	_serial_append_nl();
-//	_serial_append_value(micros() - debut);
-//	_serial_append_nl();
+//	_io_append_string("driver update");
+//	_io_append_nl();
+//	_io_append_value(micros() - debut);
+//	_io_append_nl();
 
 	bit_false(ds.state, DRIVER_UPDATE_POS);
 	return STATE_OK;
@@ -305,13 +296,14 @@ int driver_update_pos(){
 
 //update the laser output.
 //Out of the update function because of the need to cut it when not moving.
-void driver_laser(){
+void _driver_laser(){
 	if(ds.moving){
-//		_serial_append_string("laser");
-//		_serial_append_nl();
-		OCR2A = ds.now[2] >> 8;
+//		_io_append_string("laser");
+//		_io_append_nl();
+//		OCR2A = ds.now[2] >> 8;
+		PWMC_SetDutyCycle(PWM, 4, ds.now[2] >> 8);
 	} else {
-		OCR2A = 0;
+		PWMC_SetDutyCycle(PWM, 4, 0);
 	}
 }
 
@@ -322,14 +314,10 @@ long * driver_get_position(){
 // set or unset the led.
 void driver_heartbeat(){
 //	long debut = micros();
+
 	if (ds.beat_count >= ds.beat_max){
 		ds.beat_count = 0;
-		bool state = (PORTB & (1 << PB5));
-		if (state == 1){
-			PORTB &= ~(1 << PB5);
-		} else {
-			PORTB |= (1 << PB5);
-		}
+		digitalWrite(13, ledState = !ledState);
 	}
 
 	if (ds.moving){
@@ -338,7 +326,7 @@ void driver_heartbeat(){
 		ds.beat_max = ds.beat_max_idle;								// Led blink slow when idle.
 	}
 
-//	_serial_append_value(micros() - debut);
-//	_serial_append_nl();
+//	_io_append_value(micros() - debut);
+//	_io_append_nl();
 
 }

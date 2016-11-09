@@ -21,13 +21,7 @@
 // This part of the program reads each point that is received, buffers it and calculate every point of the route.
 // Once all is done, buffers are used by the driver program to control the galvos
 
-#include <Arduino.h>
-
 #include "planner.h"
-#include "serialIO.h"
-#include "settings.h"
-#include "driver.h"
-#include "system.h"
 
 plannerState ps;
 plannerBufferPool pbp;
@@ -40,7 +34,7 @@ void planner_init(){
 	ps.state = PLANNER_IDLE;
 	planner_init_buffer();
 
-//	serial_send_message(F("Planner initialisé."));
+//	io_send_message(F("Planner initialisé."));
 	
 }
 
@@ -69,12 +63,13 @@ void planner_init_buffer(){
 }
 
 int planner_main(){
+//	io_send_message("planner main");
 	if (ps.state == PLANNER_IDLE){
 		return STATE_OK;
 	}
-//	_serial_append_string("planner state: ");
-//	_serial_append_value(ps.state);
-//	_serial_append_nl();
+//	_io_append_string("planner state: ");
+//	_io_append_value(ps.state);
+//	_io_append_nl();
 
 	if (ps.state & PLANNER_COMPUTE_BUF){
 		return planner_plan_move();
@@ -134,23 +129,23 @@ void planner_set_buffer(long id, long posX, long posY, long posL, long speed, by
 			// If previous buffer is empty, set current[] as the current position
 			bf->current[i] = (double)position[i];
 		}
-//		serial_send_pair("pos X départ arreté = ", bf->current[0]);
+//		io_send_pair("pos X départ arreté = ", bf->current[0]);
 	} else {
 		// If previous buffer is populated, current[] will be the previous output
 		for (int i=0; i<3; i++){
 			bf->current[i] = pv->pos[i];
 		}
-//		serial_send_pair("pos X départ mouvement = ", bf->current[0]);
+//		io_send_pair("pos X départ mouvement = ", bf->current[0]);
 	}
 
 	posX = posX << 8;
 	posY = posY << 8;
 	posL = posL << 8;
 	speed = speed << 8;
-//	_serial_append_value(posX);
-//	_serial_append_nl();
-//	_serial_append_value(speed);
-//	_serial_append_nl();
+//	_io_append_value(posX);
+//	_io_append_nl();
+//	_io_append_value(speed);
+//	_io_append_nl();
 
 	// These tests verify if the value has been sent by the computer.
 	// A value that hasn't been sent by the computer program should be copy for the previous position, i.e.:
@@ -191,8 +186,8 @@ void planner_set_buffer(long id, long posX, long posY, long posL, long speed, by
 
 	bit_true(ps.state, PLANNER_COMPUTE_BUF);
 
-//	_serial_append_value(micros() - debut);
-//	_serial_append_nl();
+//	_io_append_value(micros() - debut);
+//	_io_append_nl();
 
 }
 
@@ -228,7 +223,7 @@ int planner_plan_move(){
 //	long debut = micros();
 
 	plannerBuffer *bf = pbp.queue;
-//	serial_send_pair("bf->active", bf->active);
+//	io_send_pair("bf->active", bf->active);
 	//Verify if the queue buffer has to be computed.
 	if (bf->compute == 1 || bf->active == 0){								// If compute == 1, the buffer has already been computed
 		bit_false(ps.state, PLANNER_COMPUTE_BUF);
@@ -245,19 +240,19 @@ int planner_plan_move(){
 		for (int i=0; i<3; i++){											// Compute the delta between previous and goal position
 			bf->delta[i] = bf->pos[i] - bf->current[i];
 		}
-//	_serial_append_value(bf->delta[0]);
-//	_serial_append_nl();
+//	_io_append_value(bf->delta[0]);
+//	_io_append_nl();
 		bf->deltaTotal = sqrt(pow(bf->delta[0], 2) + pow(bf->delta[1], 2));	// Compute the length of the route
-//		serial_send_pair("delta", bf->deltaTotal);
+//		io_send_pair("delta", bf->deltaTotal);
 
 		if (bf->speed == 0){												// If speed is equal to zero, sets the default speed
 			bf->speed = DEFAULT_SPEED;
 		}
 
 		bf->steps = abs((double)bf->deltaTotal / (double)bf->speed) * ISR_FREQUENCY;		// Compute the number of steps according to the route, speed and ISR
-//		serial_send_pair("steps", bf->steps);
-//	_serial_append_value(bf->steps);
-//	_serial_append_nl();
+//		io_send_pair("steps", bf->steps);
+//	_io_append_value(bf->steps);
+//	_io_append_nl();
 
 		if (bf->steps == 0){												// Steps cannot be 0. If it is, sets it to 1
 			bf->steps = 1;
@@ -266,8 +261,8 @@ int planner_plan_move(){
 		for (int i = 0; i<3; i++){											// Compute the increment for each axe
 			bf->incr[i] = bf->delta[i] / bf->steps;
 		}
-//	_serial_append_value(bf->incr[0]);
-//	_serial_append_nl();
+//	_io_append_value(bf->incr[0]);
+//	_io_append_nl();
 	} else {
 		//If the move type is fast move, the increment equals the new pos.
 		bf->steps = 1;
@@ -275,31 +270,31 @@ int planner_plan_move(){
 			bf->incr[i] = bf->pos[i] - bf->current[i];
 		}
 	}
-/*	serial_send_pair("posX",bf->pos[0]);
-	serial_send_pair("posY",bf->pos[1]);
-	serial_send_pair("posL",bf->pos[2]);
-	_serial_append_nl();
-	serial_send_pair("delta total",bf->deltaTotal);
-	serial_send_pair("deltaX",bf->delta[0]);
-	serial_send_pair("deltaY",bf->delta[1]);
-	serial_send_pair("deltaL",bf->delta[2]);
-	serial_send_pair("steps", bf->steps);
-	_serial_append_nl();
-	serial_send_pair("incrX",bf->incr[0]);
-	serial_send_pair("incrY",bf->incr[1]);
-	serial_send_pair("incrL",bf->incr[2]);
-	serial_send_pair("mode", bf->mode);
-	_serial_append_nl();
-	_serial_append_nl();
+/*	io_send_pair("posX",bf->pos[0]);
+	io_send_pair("posY",bf->pos[1]);
+	io_send_pair("posL",bf->pos[2]);
+	_io_append_nl();
+	io_send_pair("delta total",bf->deltaTotal);
+	io_send_pair("deltaX",bf->delta[0]);
+	io_send_pair("deltaY",bf->delta[1]);
+	io_send_pair("deltaL",bf->delta[2]);
+	io_send_pair("steps", bf->steps);
+	_io_append_nl();
+	io_send_pair("incrX",bf->incr[0]);
+	io_send_pair("incrY",bf->incr[1]);
+	io_send_pair("incrL",bf->incr[2]);
+	io_send_pair("mode", bf->mode);
+	_io_append_nl();
+	_io_append_nl();
 */
 	pbp.computed = 1;
 	bf->compute = 1;														// The buffer is marked as having been compute
 	planner_set_next_buffer(1);												// The queue index is step up
 
-//	_serial_append_string("planner plan");
-//	_serial_append_nl();
-//	_serial_append_value(micros() - debut);
-//	_serial_append_nl();
+//	_io_append_string("planner plan");
+//	_io_append_nl();
+//	_io_append_value(micros() - debut);
+//	_io_append_nl();
 	
 	if (planner_get_available() > 1){
 		return STATE_OK;

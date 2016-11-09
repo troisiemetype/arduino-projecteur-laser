@@ -27,9 +27,25 @@
 #ifndef DRIVER_H
 #define DRIVER_H
 
+#include <Arduino.h>
+#include <chip.h>
+#include <math.h>
+
+#include "driver.h"
+#include "planner.h"
+#include "I2C.h"
+#include "io.h"
+#include "settings.h"
+#include "system.h"
+
+
+#define TIMER_N 			TC0
+#define TIMER_CHANNEL		0
+#define TIMER_IRQ			TC0_IRQn
+
 #define DRIVER_OFFSET		32768
 
-#define DRIVER_POOL_SIZE	12
+#define DRIVER_POOL_SIZE	64
 
 // This structure stores the state of the Driver
 struct driverState{
@@ -75,14 +91,15 @@ struct driverBufferPool{
 	driverBuffer pool[DRIVER_POOL_SIZE];
 };
 
-void driver_init();
-void driver_init_buffer();
-void driver_interrupt_init();
-void driver_heartbeat();
-int driver_main();
-int driver_plan_pos();
-int driver_update_pos();
-void driver_laser();
-long * driver_get_position();
+void driver_init(void);
+void _driver_buffer_init(void);
+void _driver_timer_init(void);
+void _driver_pwm_init(void);
+void driver_heartbeat(void);
+int driver_main(void);
+int _driver_plan_pos(void);
+int _driver_update_pos(void);
+void _driver_laser(void);
+long * driver_get_position(void);
 
 #endif
