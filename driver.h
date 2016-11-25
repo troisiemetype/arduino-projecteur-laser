@@ -27,19 +27,39 @@
 #ifndef DRIVER_H
 #define DRIVER_H
 
+#include <Arduino.h>
+#include <chip.h>
+#include <math.h>
+
+#include "driver.h"
+#include "planner.h"
+#include "I2C.h"
+#include "io.h"
+#include "settings.h"
+#include "system.h"
+
+
+#define TIMER_N 			TC0
+#define TIMER_CHANNEL		0
+#define TIMER_IRQ			TC0_IRQn
+
 #define DRIVER_OFFSET		32768
 
-#define DRIVER_POOL_SIZE	12
+#define DRIVER_POOL_SIZE	64
 
 // This structure stores the state of the Driver
 struct driverState{
-	//Stores the current poition.
+	//Stores driver state.
+	volatile int state;
+
+	//Store the driver state
 	//Stores the previous prosition. Used to know if there is move.
-	double now[3];
-	double previous[3];
+	//test fixpoint
+	long now[3];
+	long previous[3];
 
 	//Vars for the heartbeat led. It counts the ISR interrupts,
-	//and the current and maxe values for both modes.
+	//and the current and max values for both modes.
 	volatile unsigned int beat_count;
 	int beat_max;
 	int beat_max_idle;
@@ -47,8 +67,6 @@ struct driverState{
 
 	//Stores if the laser is moving
 	bool moving;
-
-	bool update;
 
 	//debug: get the ISR time length
 	volatile long isrLength;
@@ -60,7 +78,7 @@ struct driverBuffer{
 	struct driverBuffer *pv;
 	struct driverBuffer *nx;
 
-	double pos[3];
+	long pos[3];
 };
 
 //This is the buffer ring for position buffers.
@@ -73,13 +91,15 @@ struct driverBufferPool{
 	driverBuffer pool[DRIVER_POOL_SIZE];
 };
 
-void driver_init();
-void driver_init_buffer();
-void driver_interrupt_init();
-void driver_heartbeat();
-void driver_plan_pos();
-void driver_update_pos();
-void driver_laser();
-double * driver_get_position();
+void driver_init(void);
+void _driver_buffer_init(void);
+void _driver_timer_init(void);
+void _driver_pwm_init(void);
+void driver_heartbeat(void);
+int driver_main(void);
+int _driver_plan_pos(void);
+int _driver_update_pos(void);
+void _driver_laser(void);
+long * driver_get_position(void);
 
 #endif

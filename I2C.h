@@ -22,8 +22,19 @@
 // This part of the program sends and receives datas trough I2C.
 // Above setting sare intended for an AD5665R 16 bits 4 channels DAC.
 
+
 #ifndef I2C_H
 #define I2C_H
+
+
+#include <Arduino.h>
+
+#include "I2C.h"
+#include "settings.h"
+#include "io.h"
+#include "driver.h"
+#include <Wire.h>
+
 
 //define AD5665 commands
 #define AD5665_WRITE_N			0x0
