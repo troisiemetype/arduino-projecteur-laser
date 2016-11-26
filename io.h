@@ -27,20 +27,13 @@
 #define IO_H
 
 #include <Arduino.h>
-#include "circularbuffer.h"
+#include "debug.h"
 #include "planner.h"
 #include "driver.h"
 #include "settings.h"
 #include "system.h"
 
-#define LINE_BUFFER_SIZE			32
-
-#define FLAG_I						1 << 5
-#define FLAG_X						1 << 4
-#define FLAG_Y						1 << 3
-#define FLAG_L						1 << 2
-#define FLAG_SPEED					1 << 1
-#define FLAG_MODE					1 << 0
+#define SERIAL_WATCHDOG				256
 
 #define IO_OK						0
 #define IO_SEND_AGAIN 				1
@@ -86,13 +79,14 @@ struct serialState{
 
 	int parser_state;
 
+	byte serial_watchdog;
 	byte data_to_read;
 	byte data_received;
 	byte checksum;
 	byte inVar;										// Stocks temporary var names before values are parsed and record.
 	long inValue;									// Stocks value, before they are recorded.
 
-	long id;										// Stocks the vales received, if parsing has been successfull.
+	int id;										// Stocks the values received, if parsing has been successfull.
 	int posX;
 	int posY;
 	byte posL;
@@ -103,28 +97,17 @@ struct serialState{
 void io_init();
 int io_main();
 int _io_get_data();
-byte _io_parse_char(byte* value);
-int _io_parse_int(int* value);
+byte _io_parse_char();
+int _io_parse_int();
 void _io_record_values();
-void _io_send_go();
-//void _io_send_again();
+
 void io_send_pair(String text, double value);
 void io_send_message(String message);
-void io_percent(long id);
-void io_step();
-void _io_interrupt_init();
-char _io_rx_queue();
+void io_send_value(double value);
+
 void _io_append_string(String data);
 void _io_append_value(double value);
 void _io_append_nl();
 void _io_append_byte(char data);
-void _io_clear_rx_buffer();
-
-void debug_send_pair(String text, double value);
-void debug_send_message(String message);
-void _debug_append_string(String data);
-void _debug_append_value(double value);
-void _debug_append_nl();
-void _debug_append_byte(char data);
 
 #endif

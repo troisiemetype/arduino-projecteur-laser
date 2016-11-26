@@ -180,8 +180,8 @@ int _driver_plan_pos(){
 		bit_false(ds.state, DRIVER_COMPUTE_BUF);
 		return STATE_NO_OP;
 	}
-//	_io_append_string("driver plan");
-//	_io_append_nl();
+//	_debug_append_string("driver plan");
+//	_debug_append_nl();
 
 //	io_send_message("driver plan");
 
@@ -256,8 +256,8 @@ int _driver_update_pos(){
 		return STATE_NO_OP;
 	}
 
-//	_io_append_string("driver update pos");
-//	_io_append_nl();
+//	_debug_append_string("driver update pos");
+//	_debug_append_nl();
 
 	//Get the current run buffer
 	driverBuffer *db = dbp.run;
@@ -265,13 +265,13 @@ int _driver_update_pos(){
 	//Send the new values to the I2C
 	if (db->pos[0] != ds.previous[0]){
 		ds.moving = 1;
-		unsigned int pos = (db->pos[0] >> 8) + DRIVER_OFFSET;
+		unsigned int pos = (db->pos[0] /256) + DRIVER_OFFSET;
 		I2C_write('X', pos);
 	}
  
 	if (db->pos[1] != ds.previous[1]){
 		ds.moving = 1;
-		unsigned int pos = (db->pos[1] >> 8) + DRIVER_OFFSET;
+		unsigned int pos = (db->pos[1] / 256) + DRIVER_OFFSET;
 		I2C_write('Y', pos);
 	}
 
@@ -300,8 +300,7 @@ void _driver_laser(){
 	if(ds.moving){
 //		_io_append_string("laser");
 //		_io_append_nl();
-//		OCR2A = ds.now[2] >> 8;
-		PWMC_SetDutyCycle(PWM, 4, ds.now[2] >> 8);
+		PWMC_SetDutyCycle(PWM, 4, ds.now[2] / 256);
 	} else {
 		PWMC_SetDutyCycle(PWM, 4, 0);
 	}

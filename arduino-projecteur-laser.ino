@@ -36,6 +36,7 @@
 
 
 //includes
+#include "debug.h"
 #include "driver.h"
 #include "I2C.h"
 #include "io.h"
@@ -49,6 +50,7 @@ long temps_prec = 0;
 void setup(){
 
 	//calling the init functions of all program parts
+	debug_init();
 	system_init();
 	driver_init();
 	io_init();

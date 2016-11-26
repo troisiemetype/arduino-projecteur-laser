@@ -138,35 +138,34 @@ void planner_set_buffer(long id, long posX, long posY, long posL, long speed, by
 //		io_send_pair("pos X départ mouvement = ", bf->current[0]);
 	}
 
-	posX = posX << 8;
-	posY = posY << 8;
-	posL = posL << 8;
-	speed = speed << 8;
-//	_io_append_value(posX);
-//	_io_append_nl();
-//	_io_append_value(speed);
-//	_io_append_nl();
+	posX *= 256;
+	posY *= 256;
+	posL *= 256;
+	speed *= 256;
 
 	// These tests verify if the value has been sent by the computer.
 	// A value that hasn't been sent by the computer program should be copy for the previous position, i.e.:
 	// driver state position if the move is stopped
 	// previous buffer end position if it's populated
 	// So we just copy the values that have been set above
-	if (!(set & 16)){
+	if (!(set & FLAG_X)){
 		posX = bf->current[0];
 	}
-	if (!(set & 8)){
+	if (!(set & FLAG_Y)){
 		posY = bf->current[1];
 	}
-	if (!(set & 4)){
+	if (!(set & FLAG_L)){
 		posL = bf->current[2];
 	}
-	if (!(set & 2)){
+	if (!(set & FLAG_SPEED)){
 		speed = pv->speed;
 	}
-	if (!(set & 1)){
+	if (!(set & FLAG_MODE)){
 		mode = pv->mode;
 	}
+	debug_value(posX);
+	debug_value(posY);
+	debug_append_nl();
 
 
 	bf->id = id;
@@ -185,6 +184,9 @@ void planner_set_buffer(long id, long posX, long posY, long posL, long speed, by
 	pbp.available--;
 
 	bit_true(ps.state, PLANNER_COMPUTE_BUF);
+
+//	_debug_append_string("planner populated");
+//	_debug_append_nl();
 
 //	_io_append_value(micros() - debut);
 //	_io_append_nl();

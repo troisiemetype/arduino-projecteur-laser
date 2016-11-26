@@ -28,6 +28,7 @@
 
 #include <Arduino.h>
 
+#include "debug.h"
 #include "planner.h"
 #include "io.h"
 #include "settings.h"

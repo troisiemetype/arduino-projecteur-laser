@@ -42,6 +42,13 @@
 #define ISR_FREQUENCY			2500				// Frequency of the interrupt
 #define BEAT_FREQUENCY			0.5					// Frequency of the heartbeat
 
+#define FLAG_I						1 << 5
+#define FLAG_X						1 << 4
+#define FLAG_Y						1 << 3
+#define FLAG_L						1 << 2
+#define FLAG_SPEED					1 << 1
+#define FLAG_MODE					1 << 0
+
 /*
 #define MOVE_CARTESIAN			0					// Used to test the move type in the driver ISR
 #define MOVE_POLAR				1
