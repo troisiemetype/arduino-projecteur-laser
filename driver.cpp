@@ -265,7 +265,7 @@ int _driver_update_pos(){
 	//Send the new values to the I2C
 	if (db->pos[0] != ds.previous[0]){
 		ds.moving = 1;
-		unsigned int pos = (db->pos[0] /256) + DRIVER_OFFSET;
+		unsigned int pos = (db->pos[0] / 256) + DRIVER_OFFSET;
 		I2C_write('X', pos);
 	}
  

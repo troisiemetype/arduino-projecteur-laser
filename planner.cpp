@@ -165,7 +165,8 @@ void planner_set_buffer(long id, long posX, long posY, long posL, long speed, by
 	}
 	debug_value(posX);
 	debug_value(posY);
-	debug_append_nl();
+	debug_value(posL);
+//	debug_append_nl();
 
 
 	bf->id = id;
@@ -185,7 +186,7 @@ void planner_set_buffer(long id, long posX, long posY, long posL, long speed, by
 
 	bit_true(ps.state, PLANNER_COMPUTE_BUF);
 
-//	_debug_append_string("planner populated");
+//	debug_message("planner populated");
 //	_debug_append_nl();
 
 //	_io_append_value(micros() - debut);

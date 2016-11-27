@@ -78,12 +78,13 @@ int io_main(){
 //Send to planner when complete, or ask for data again if corrupted.
 int _io_get_data(){
 
-	if (SerialUSB.available() == 0){
-		bit_false(ss.state, SERIAL_RX);
-		return STATE_NO_OP;
-	}
-
 	if (ss.parser_state == PARSE_IDLE){
+
+		if (SerialUSB.available() == 0){
+			bit_false(ss.state, SERIAL_RX);
+			return STATE_NO_OP;
+		}
+
 //		debug_message("parse header");
 		byte c = SerialUSB.read();
 		ss.data_received = c;
@@ -171,11 +172,11 @@ int _io_get_data(){
 //		debug_append_nl();
 
 		byte c = SerialUSB.read();
-//		_debug_append_byte(c);
-//		_debug_append_byte(ss.checksum);
+//		debug_append_byte(c);
+//		debug_append_byte(ss.checksum);
 		while(SerialUSB.available()){
-//			_debug_append_string("empty serial");
-//			_debug_append_nl();
+//			debug_append_string("empty serial");
+//			debug_append_nl();
 			SerialUSB.read();
 		}
 
