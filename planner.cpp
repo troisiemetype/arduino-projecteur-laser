@@ -34,7 +34,7 @@ void planner_init(){
 	ps.state = PLANNER_IDLE;
 	planner_init_buffer();
 
-//	io_send_message(F("Planner initialisé."));
+//	debug__message(F("Planner initialisé."));
 	
 }
 
@@ -63,13 +63,12 @@ void planner_init_buffer(){
 }
 
 int planner_main(){
-//	io_send_message("planner main");
+//	debug__message("planner main");
 	if (ps.state == PLANNER_IDLE){
 		return STATE_OK;
 	}
-//	_io_append_string("planner state: ");
-//	_io_append_value(ps.state);
-//	_io_append_nl();
+//	debug_append_string("planner state: ");
+//	debug_value(ps.state);
 
 	if (ps.state & PLANNER_COMPUTE_BUF){
 		return planner_plan_move();
@@ -129,13 +128,13 @@ void planner_set_buffer(long id, long posX, long posY, long posL, long speed, by
 			// If previous buffer is empty, set current[] as the current position
 			bf->current[i] = (double)position[i];
 		}
-//		io_send_pair("pos X départ arreté = ", bf->current[0]);
+//		debug_pair("pos X départ arreté = ", bf->current[0]);
 	} else {
 		// If previous buffer is populated, current[] will be the previous output
 		for (int i=0; i<3; i++){
 			bf->current[i] = pv->pos[i];
 		}
-//		io_send_pair("pos X départ mouvement = ", bf->current[0]);
+//		debug_pair("pos X départ mouvement = ", bf->current[0]);
 	}
 
 	posX *= 256;
@@ -163,9 +162,10 @@ void planner_set_buffer(long id, long posX, long posY, long posL, long speed, by
 	if (!(set & FLAG_MODE)){
 		mode = pv->mode;
 	}
-	debug_value(posX);
-	debug_value(posY);
-	debug_value(posL);
+//	debug_pair("populate ", id);
+//	debug_value(posX);
+//	debug_value(posY);
+//	debug_value(posL);
 //	debug_append_nl();
 
 
@@ -187,10 +187,9 @@ void planner_set_buffer(long id, long posX, long posY, long posL, long speed, by
 	bit_true(ps.state, PLANNER_COMPUTE_BUF);
 
 //	debug_message("planner populated");
-//	_debug_append_nl();
+//	debug_append_nl();
 
-//	_io_append_value(micros() - debut);
-//	_io_append_nl();
+//	debug_value(micros() - debut);
 
 }
 
@@ -226,7 +225,7 @@ int planner_plan_move(){
 //	long debut = micros();
 
 	plannerBuffer *bf = pbp.queue;
-//	io_send_pair("bf->active", bf->active);
+//	debug_pair("bf->active", bf->active);
 	//Verify if the queue buffer has to be computed.
 	if (bf->compute == 1 || bf->active == 0){								// If compute == 1, the buffer has already been computed
 		bit_false(ps.state, PLANNER_COMPUTE_BUF);
@@ -238,24 +237,21 @@ int planner_plan_move(){
 				return STATE_ENTER_AGAIN;
 			} 
 	}
-
+//	debug_pair("compute  ", bf->id);
 	if (bf->mode != 0){														// Look at the type of move: O is fast (placement), else is calibrated
 		for (int i=0; i<3; i++){											// Compute the delta between previous and goal position
 			bf->delta[i] = bf->pos[i] - bf->current[i];
 		}
-//	_io_append_value(bf->delta[0]);
-//	_io_append_nl();
+//		debug_pair("delta X", bf->delta[0]);
 		bf->deltaTotal = sqrt(pow(bf->delta[0], 2) + pow(bf->delta[1], 2));	// Compute the length of the route
-//		io_send_pair("delta", bf->deltaTotal);
+//		debug_pair("delta", bf->deltaTotal);
 
 		if (bf->speed == 0){												// If speed is equal to zero, sets the default speed
 			bf->speed = DEFAULT_SPEED;
 		}
 
 		bf->steps = abs((double)bf->deltaTotal / (double)bf->speed) * ISR_FREQUENCY;		// Compute the number of steps according to the route, speed and ISR
-//		io_send_pair("steps", bf->steps);
-//	_io_append_value(bf->steps);
-//	_io_append_nl();
+//		debug_pair("steps", bf->steps);
 
 		if (bf->steps == 0){												// Steps cannot be 0. If it is, sets it to 1
 			bf->steps = 1;
@@ -264,8 +260,7 @@ int planner_plan_move(){
 		for (int i = 0; i<3; i++){											// Compute the increment for each axe
 			bf->incr[i] = bf->delta[i] / bf->steps;
 		}
-//	_io_append_value(bf->incr[0]);
-//	_io_append_nl();
+//		debug_pair("incr X", bf->incr[0]);
 	} else {
 		//If the move type is fast move, the increment equals the new pos.
 		bf->steps = 1;
@@ -273,31 +268,31 @@ int planner_plan_move(){
 			bf->incr[i] = bf->pos[i] - bf->current[i];
 		}
 	}
-/*	io_send_pair("posX",bf->pos[0]);
-	io_send_pair("posY",bf->pos[1]);
-	io_send_pair("posL",bf->pos[2]);
-	_io_append_nl();
-	io_send_pair("delta total",bf->deltaTotal);
-	io_send_pair("deltaX",bf->delta[0]);
-	io_send_pair("deltaY",bf->delta[1]);
-	io_send_pair("deltaL",bf->delta[2]);
-	io_send_pair("steps", bf->steps);
-	_io_append_nl();
-	io_send_pair("incrX",bf->incr[0]);
-	io_send_pair("incrY",bf->incr[1]);
-	io_send_pair("incrL",bf->incr[2]);
-	io_send_pair("mode", bf->mode);
-	_io_append_nl();
-	_io_append_nl();
+/*	debug_pair("posX",bf->pos[0]);
+	debug_pair("posY",bf->pos[1]);
+	debug_pair("posL",bf->pos[2]);
+	debug_append_nl();
+	debug_pair("delta total",bf->deltaTotal);
+	debug_pair("deltaX",bf->delta[0]);
+	debug_pair("deltaY",bf->delta[1]);
+	debug_pair("deltaL",bf->delta[2]);
+	debug_pair("steps", bf->steps);
+	debug_append_nl();
+	debug_pair("incrX",bf->incr[0]);
+	debug_pair("incrY",bf->incr[1]);
+	debug_pair("incrL",bf->incr[2]);
+	debug_pair("mode", bf->mode);
+	debug_append_nl();
+	debug_append_nl();
 */
 	pbp.computed = 1;
 	bf->compute = 1;														// The buffer is marked as having been compute
 	planner_set_next_buffer(1);												// The queue index is step up
 
-//	_io_append_string("planner plan");
-//	_io_append_nl();
-//	_io_append_value(micros() - debut);
-//	_io_append_nl();
+//	debug_append_string("planner plan");
+//	debug_append_nl();
+//	debug_append_value(micros() - debut);
+//	debug_append_nl();
 	
 	if (planner_get_available() > 1){
 		return STATE_OK;

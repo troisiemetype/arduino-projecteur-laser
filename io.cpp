@@ -99,6 +99,10 @@ int _io_get_data(){
 
 		ss.serial_watchdog = 0;
 
+		if (ss.data_received & FLAG_I){
+			ss.data_to_read += 1;
+		}
+
 		if (ss.data_received & FLAG_X){
 			ss.data_to_read += 2;
 		}
@@ -137,36 +141,37 @@ int _io_get_data(){
 			return STATE_ENTER_AGAIN;
 		}
 
+		if (ss.data_received & FLAG_I){
+			ss.id = _io_parse_char();
+//			debug_value(ss.id);
+//			debug_message("parse id");
+		}
+
 		if (ss.data_received & FLAG_X){
 			ss.posX = _io_parse_int();
 //			debug_value(ss.posX);
-//			_debug_append_string("parse X");
-//			_debug_append_nl();
+//			debug_message("parse X");
 		}
 
 		if (ss.data_received & FLAG_Y){
 			ss.posY = _io_parse_int();
 //			debug_value(ss.posY);
-//			_debug_append_string("parse Y");
-//			_debug_append_nl();
+//			debug_message("parse Y");
 		}
 
 		if (ss.data_received & FLAG_L){
 			ss.posL = _io_parse_char();
-//			_debug_append_string("parse L");
-//			_debug_append_nl();
+//			debug_message("parse L");
 		}
 
 		if (ss.data_received & FLAG_SPEED){
 			ss.speed = _io_parse_int();
-//			_debug_append_string("parse speed");
-//			_debug_append_nl();
+//			debug_message("parse speed");
 		}
 
 		if (ss.data_received & FLAG_MODE){
 			ss.mode = _io_parse_char();
-//			_debug_append_string("parse mode");
-//			_debug_append_nl();
+//			debug_message("parse mode");
 		}
 
 //		debug_append_nl();
@@ -183,22 +188,22 @@ int _io_get_data(){
 		if (c != ss.checksum){
 			ss.parser_state = PARSE_IDLE;
 			_io_append_byte(IO_SEND_AGAIN);
-			debug_append_byte(IO_SEND_AGAIN);
+//			debug_append_byte(IO_SEND_AGAIN);
 			return STATE_OK;
 
 		} else {
 			ss.parser_state = PARSE_RECORD;
-
-			if (planner_get_available() < 1){							// Manage the planner buffer queue.
-//				debug_message("no buffer available");
-				return STATE_ENTER_AGAIN;
-			}
 		}
 	}
 
 	if (ss.parser_state == PARSE_RECORD){
+		if (planner_get_available() < 2){							// Manage the planner buffer queue.
+//			debug_message("no buffer available");
+			return STATE_ENTER_AGAIN;
+		}
+
 		_io_append_byte(IO_OK);
-		debug_append_byte(IO_OK);
+//		debug_append_byte(IO_OK);
 		_io_record_values();
 
 		ss.parser_state = PARSE_IDLE;

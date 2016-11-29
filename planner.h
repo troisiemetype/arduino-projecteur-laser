@@ -28,7 +28,7 @@
 
 #include <Arduino.h>
 
-//#include "debug.h"
+#include "debug.h"
 #include "planner.h"
 #include "io.h"
 #include "settings.h"
@@ -42,12 +42,11 @@ struct plannerState{
 };
 
 // this structure stores each point sent by computer to the program
-// TODO: TEST FIXPONT MATH TO TRY TO AVOID FLOAT AND DOUBLE.
 struct plannerBuffer {
 	struct plannerBuffer *pv;						// Stores the address of the previous buffer
 	struct plannerBuffer *nx;						// Stores the address of the next buffer
 
-	bool active;									// remember if the buffer is active, i.e. if it has been set or if it's empty
+	bool active;									// Remember if the buffer is active, i.e. if it has been set or if it's empty
 	bool compute;									// Rememeber if the planner has already calulated the deltas and increments
 
 	long id;
@@ -58,14 +57,12 @@ struct plannerBuffer {
 	//Test fixpoint
 	long current[3];								// Stores the instant position
 
-	// TODO: SEE WITH TESTS IF deltaTotal HAS TO BEE A DOUBLE INSTEAD OF AN UNSIGNED INT.
 	unsigned long deltaTotal;						// The delta between the start and the final position.
 	long delta[3];													
 
 	long steps;										// Stores the number ot steps for this move (== (delta / speed) * ISR_FREQUENCY)
 	volatile long nowSteps;
 
-	// TODO: TEST FIXPOINT MATH.
 	long incr[3];									// The increment it must goes forward on each step
 };
 

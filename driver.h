@@ -60,8 +60,9 @@ struct driverState{
 
 	//Vars for the heartbeat led. It counts the ISR interrupts,
 	//and the current and max values for both modes.
+	volatile bool ledState;
 	volatile unsigned int beat_count;
-	int beat_max;
+	volatile int beat_max;
 	int beat_max_idle;
 	int beat_max_driving;
 

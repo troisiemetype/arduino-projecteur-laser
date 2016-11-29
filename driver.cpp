@@ -39,8 +39,6 @@ driverState ds;
 
 driverBufferPool dbp;
 
-bool ledState = 0;
-
 void driver_init(){
 	memset(&ds, 0, sizeof(ds));										// Init the driver state with 0
 
@@ -52,10 +50,12 @@ void driver_init(){
 
 	ds.beat_max = ds.beat_max_idle;
 
+	ds.ledState = 0;
+
 //TODO: find the right port for laser PWM.
 //	DDRB |= (1 << PB3) | (1 << PB5);								// Set pins 11 (laser) and 13 (led) as outputs
 //	PORTB &= ~(1 << PB5);											// Unset pin 13
-	pinMode(13, OUTPUT);
+	pinMode(LED, OUTPUT);
 	
 	_driver_buffer_init();
 	_driver_timer_init();
@@ -127,7 +127,9 @@ void _driver_pwm_init(){
 	//Set pin 9 for the laser
 	PIO_Configure(PIOC, PIO_PERIPH_B, PIO_PC21B_PWML4, PIO_DEFAULT);
 
-	PWMC_ConfigureChannel(PWM, 4, PWM_CMR_CPRE_MCK_DIV_1024, 0, 0);
+	//Configure PWM, channel 4, no prescaller
+	PWMC_ConfigureChannel(PWM, 4, PWM_CMR_CPRE_MCK, 0, 0);
+	//Configure for counting up to 255, init at 0
 	PWMC_SetPeriod(PWM, 4, 255);
 	PWMC_SetDutyCycle(PWM, 4, 0);
 
@@ -139,14 +141,21 @@ void TC0_Handler(void){
 
 	TC_GetStatus(TIMER_N, TIMER_CHANNEL);
 
+	//Increment beatCount, update led if needed.
 	ds.beat_count++;
+	if (ds.beat_count >= ds.beat_max){
+		ds.beat_count = 0;
+		digitalWrite(LED, ds.ledState = !ds.ledState);
+
+	}
+
 
 	bit_true(ds.state, DRIVER_UPDATE_POS);
 }
 
 
 int driver_main(){
-//	io_send_message("driver main");
+//	debug_message("driver main");
 	if (ds.state == DRIVER_IDLE){
 		return STATE_OK;
 	}
@@ -172,7 +181,7 @@ int _driver_plan_pos(){
 		return STATE_NO_OP;
 	}
 //	long debut = micros();
-	//Create pointers to the current planner buffer.
+	//Get pointer to the current planner buffer.
 	plannerBuffer *bf = planner_get_run_buffer();
 
 	//Verify there is a move to compute in the planner, else return.
@@ -180,10 +189,9 @@ int _driver_plan_pos(){
 		bit_false(ds.state, DRIVER_COMPUTE_BUF);
 		return STATE_NO_OP;
 	}
-//	_debug_append_string("driver plan");
-//	_debug_append_nl();
+//	debug_pair("plan move", bf->id);
 
-//	io_send_message("driver plan");
+//	debug_message("driver plan");
 
 	//Get pointer to the driver buffer
 	driverBuffer *db = dbp.queue;
@@ -204,7 +212,7 @@ int _driver_plan_pos(){
 		//Set the planner buffer to next, then free it.
 		planner_set_next_buffer(2);
 		planner_free_buffer(bf);
-//		_io_append_value(db->pos[0] >> 8);
+//		debug_value(db->pos[0] >> 8);
 
 	} else {
 		bf->nowSteps++;
@@ -214,10 +222,8 @@ int _driver_plan_pos(){
 	dbp.queue = db->nx;
 	dbp.available --;
 
-//	_io_append_string("driver plan");
-//	_io_append_nl();
-//	_io_append_value(micros() - debut);
-//	_io_append_nl();
+//	debug_message("driver plan");
+//	debug_value(micros() - debut);
 
 	if (dbp.available < DRIVER_POOL_SIZE){
 		bit_true(ds.state, DRIVER_COMPUTE_BUF);
@@ -243,7 +249,7 @@ int _driver_update_pos(){
 
 	//Debug: display the length of the driver isr.
 	//Check to uncomment mesurings in the ISR, and var def in driver.h
-//	io_send_pair("ticks ISR:", ds.isrLength);
+//	debug_pair("ticks ISR:", ds.isrLength);
 
 
 	I2C_update();
@@ -251,13 +257,11 @@ int _driver_update_pos(){
 	//Verifies there are positions to update.
 	if (dbp.available >= DRIVER_POOL_SIZE){
 		bit_false(ds.state, DRIVER_UPDATE_POS);
-//		_io_append_string("update quit");
-//		_io_append_nl();
+//		debug_message("update quit");
 		return STATE_NO_OP;
 	}
 
-//	_debug_append_string("driver update pos");
-//	_debug_append_nl();
+//	debug_message("driver update pos");
 
 	//Get the current run buffer
 	driverBuffer *db = dbp.run;
@@ -265,13 +269,17 @@ int _driver_update_pos(){
 	//Send the new values to the I2C
 	if (db->pos[0] != ds.previous[0]){
 		ds.moving = 1;
-		unsigned int pos = (db->pos[0] / 256) + DRIVER_OFFSET;
+		int pos = (db->pos[0] / 256);
+		if(INVERT_X){pos = -pos;}
+		pos += DRIVER_OFFSET;
 		I2C_write('X', pos);
 	}
  
 	if (db->pos[1] != ds.previous[1]){
 		ds.moving = 1;
-		unsigned int pos = (db->pos[1] / 256) + DRIVER_OFFSET;
+		int pos = (db->pos[1] / 256);
+		if(INVERT_Y){pos = -pos;}
+		pos += DRIVER_OFFSET;
 		I2C_write('Y', pos);
 	}
 
@@ -284,10 +292,8 @@ int _driver_update_pos(){
 	//Prepare the next pos.
 	dbp.run = db->nx;
 	dbp.available++;
-//	_io_append_string("driver update");
-//	_io_append_nl();
-//	_io_append_value(micros() - debut);
-//	_io_append_nl();
+//	debug_message("driver update");
+//	debug_value(micros() - debut);
 
 	bit_false(ds.state, DRIVER_UPDATE_POS);
 	return STATE_OK;
@@ -297,12 +303,11 @@ int _driver_update_pos(){
 //update the laser output.
 //Out of the update function because of the need to cut it when not moving.
 void _driver_laser(){
-	if(ds.moving){
-//		_io_append_string("laser");
-//		_io_append_nl();
-		PWMC_SetDutyCycle(PWM, 4, ds.now[2] / 256);
-	} else {
+//	if(dbp.available >= DRIVER_POOL_SIZE){
+	if(!ds.moving){
 		PWMC_SetDutyCycle(PWM, 4, 0);
+	} else {
+		PWMC_SetDutyCycle(PWM, 4, ds.now[2] / 256);
 	}
 }
 
@@ -313,19 +318,11 @@ long * driver_get_position(){
 // set or unset the led.
 void driver_heartbeat(){
 //	long debut = micros();
-
-	if (ds.beat_count >= ds.beat_max){
-		ds.beat_count = 0;
-		digitalWrite(13, ledState = !ledState);
-	}
-
 	if (ds.moving){
 		ds.beat_max = ds.beat_max_driving;							// Led blink faster when moving.
 	} else {
 		ds.beat_max = ds.beat_max_idle;								// Led blink slow when idle.
 	}
 
-//	_io_append_value(micros() - debut);
-//	_io_append_nl();
-
+//	debug_value(micros() - debut);
 }
