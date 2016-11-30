@@ -140,7 +140,7 @@ void planner_set_buffer(long id, long posX, long posY, long posL, long speed, by
 	posX *= 256;
 	posY *= 256;
 	posL *= 256;
-	speed *= 256;
+//	speed *= 256;
 
 	// These tests verify if the value has been sent by the computer.
 	// A value that hasn't been sent by the computer program should be copy for the previous position, i.e.:
@@ -238,7 +238,7 @@ int planner_plan_move(){
 			} 
 	}
 //	debug_pair("compute  ", bf->id);
-	if (bf->mode != 0){														// Look at the type of move: O is fast (placement), else is calibrated
+	if (bf->mode == 2){														// Look at the type of move: 2 is calibrated
 		for (int i=0; i<3; i++){											// Compute the delta between previous and goal position
 			bf->delta[i] = bf->pos[i] - bf->current[i];
 		}

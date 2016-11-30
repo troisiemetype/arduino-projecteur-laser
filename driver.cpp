@@ -203,6 +203,10 @@ int _driver_plan_pos(){
 		db->pos[i] = bf->current[i];
 	}
 
+	if (bf->mode == 1){
+		db->pause = bf->speed;
+	}
+
 	//If the max number of steps for this move has been reach, 
 	if (bf->nowSteps >= bf->steps-1){
 		//Copy the goal position instead of the compute position, to minimize drift due to roudings.
@@ -290,8 +294,14 @@ int _driver_update_pos(){
 	}
 
 	//Prepare the next pos.
-	dbp.run = db->nx;
-	dbp.available++;
+	if (ds.pause >= db->pause){
+		db->pause = 0;
+		ds.pause = 0;
+		dbp.run = db->nx;
+		dbp.available++;
+	} else {
+		ds.pause++;
+	}
 //	debug_message("driver update");
 //	debug_value(micros() - debut);
 
@@ -304,7 +314,7 @@ int _driver_update_pos(){
 //Out of the update function because of the need to cut it when not moving.
 void _driver_laser(){
 //	if(dbp.available >= DRIVER_POOL_SIZE){
-	if(!ds.moving){
+	if(!ds.moving && ds.pause == 0){
 		PWMC_SetDutyCycle(PWM, 4, 0);
 	} else {
 		PWMC_SetDutyCycle(PWM, 4, ds.now[2] / 256);

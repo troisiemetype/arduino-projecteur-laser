@@ -57,6 +57,7 @@ struct driverState{
 	//test fixpoint
 	long now[3];
 	long previous[3];
+	int pause;
 
 	//Vars for the heartbeat led. It counts the ISR interrupts,
 	//and the current and max values for both modes.
@@ -80,6 +81,8 @@ struct driverBuffer{
 	struct driverBuffer *nx;
 
 	long pos[3];
+
+	int pause;
 };
 
 //This is the buffer ring for position buffers.

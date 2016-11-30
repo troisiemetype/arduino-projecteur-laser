@@ -44,6 +44,8 @@
 #define ISR_FREQUENCY			4000				// Frequency of the interrupt
 #define BEAT_FREQUENCY			0.5					// Frequency of the heartbeat
 
+#define WATCHDOG				50
+
 #define FLAG_I					1 << 5
 #define FLAG_X					1 << 4
 #define FLAG_Y					1 << 3

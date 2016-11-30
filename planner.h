@@ -52,7 +52,7 @@ struct plannerBuffer {
 	long id;
 	long pos[3];									// The position we must go to
 	long speed;										// Ditto speed. Applies to the curent movement. Galvo increments/second.
-	byte mode;										// Stores the current mode: 0 = fast movement, else = calibrated movement
+	byte mode;										// Stores the current mode: 0 = fast movement, 1 = fast + tempo, 2 = calibrated movement
 
 	//Test fixpoint
 	long current[3];								// Stores the instant position
