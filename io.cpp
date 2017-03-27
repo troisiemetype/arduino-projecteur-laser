@@ -213,6 +213,7 @@ int _io_get_data(){
 
 }
 
+//parse a received byte and add its value to checksum
 byte _io_parse_char(){
 	byte c = SerialUSB.read();
 //	_debug_append_byte(c);
@@ -220,6 +221,7 @@ byte _io_parse_char(){
 	return c;
 }
 
+//Parse a received int, add its value to checksum (both bytes), and invert it if needed.
 int _io_parse_int(){
 	byte c = SerialUSB.read();
 	int value = c << 8;
@@ -227,6 +229,8 @@ int _io_parse_int(){
 
 	c = SerialUSB.read();
 	value |= c;
+	//If the first bit of the received value is at 1, then it's a negative number.
+	//As the int on Due are 4 bytes long, the two upper bytes needs to be set at 1 manualy.
 	if (value & 0x8000){
 		value |= ~0xFFFF;
 	}

@@ -127,8 +127,9 @@ void _driver_pwm_init(){
 	//Set pin 9 for the laser
 	PIO_Configure(PIOC, PIO_PERIPH_B, PIO_PC21B_PWML4, PIO_DEFAULT);
 
-	//Configure PWM, channel 4, no prescaller
-	PWMC_ConfigureChannel(PWM, 4, PWM_CMR_CPRE_MCK, 0, 0);
+	//Configure PWM, channel 4, prescaller 8
+	//(values bellow a 8 prescaller lead to incomplete burning: laser driver is not fast enough)
+	PWMC_ConfigureChannel(PWM, 4, PWM_CMR_CPRE_MCK_DIV_8, 0, 0);
 	//Configure for counting up to 255, init at 0
 	PWMC_SetPeriod(PWM, 4, 255);
 	PWMC_SetDutyCycle(PWM, 4, 0);
@@ -255,6 +256,8 @@ int _driver_update_pos(){
 	//Check to uncomment mesurings in the ISR, and var def in driver.h
 //	debug_pair("ticks ISR:", ds.isrLength);
 
+	//Cut the laser before to update pos.
+//	PWMC_SetDutyCycle(PWM, 4, 0);
 
 	I2C_update();
 
@@ -273,7 +276,7 @@ int _driver_update_pos(){
 	//Send the new values to the I2C
 	if (db->pos[0] != ds.previous[0]){
 		ds.moving = 1;
-		int pos = (db->pos[0] / 256);
+		int pos = (db->pos[0]);
 		if(INVERT_X){pos = -pos;}
 		pos += DRIVER_OFFSET;
 		I2C_write('X', pos);
@@ -281,7 +284,7 @@ int _driver_update_pos(){
  
 	if (db->pos[1] != ds.previous[1]){
 		ds.moving = 1;
-		int pos = (db->pos[1] / 256);
+		int pos = (db->pos[1]);
 		if(INVERT_Y){pos = -pos;}
 		pos += DRIVER_OFFSET;
 		I2C_write('Y', pos);
@@ -317,7 +320,7 @@ void _driver_laser(){
 	if(!ds.moving && ds.pause == 0){
 		PWMC_SetDutyCycle(PWM, 4, 0);
 	} else {
-		PWMC_SetDutyCycle(PWM, 4, ds.now[2] / 256);
+		PWMC_SetDutyCycle(PWM, 4, ds.now[2]);
 	}
 }
 

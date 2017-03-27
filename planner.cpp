@@ -137,9 +137,9 @@ void planner_set_buffer(long id, long posX, long posY, long posL, long speed, by
 //		debug_pair("pos X départ mouvement = ", bf->current[0]);
 	}
 
-	posX *= 256;
-	posY *= 256;
-	posL *= 256;
+//	posX *= 256;
+//	posY *= 256;
+//	posL *= 256;
 //	speed *= 256;
 
 	// These tests verify if the value has been sent by the computer.
