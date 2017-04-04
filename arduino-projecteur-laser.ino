@@ -19,55 +19,121 @@
  */
 
 /* This program is intended to control a laser projector
- * The projector is controled by positions sent by a programm sent via UART link
  */
- /*
-  * This is the main program that runs the projector.
-  * It does the initial setup by calling the dedicated sub-program initialize functions,
-  * then runs the main loop, calling each part one after the other.
-  * 
-  * The program is composed of these modules: 
-  * Serial: Set and use the serial UART data flow, get data from PC.
-  * Planner: populates buffer with coordinates from the data received.
-  * Driver: Use an interrupt to update position on a regular basis.
-  * I2C. Transmit position from the driver to DAC trough I2C.
-  * Settings. Store general settings. Settings that are dedicated to a sub_program are stored in their respectives header files.
-  */
 
-
+/*
+ * Pin mapping:
+ * Screen is connected on SDA and SCL pins, that are A4 and A5, respectively (pins 18 and 19)
+ * Encoder is connected to pins 2 and 3, but doesn't use INT0 and INT1 interrupts.
+ * Laser intensity is connected on pin 11.
+ * It's driven by the TIMER2 channel A PWM, in fast PWM mode
+ * (Non-onverting mode causes the output to be glimpsing when timer overflows,
+ * causing laser to be always on.)
+ */
 //includes
-#include "debug.h"
-#include "driver.h"
-#include "I2C.h"
-#include "io.h"
-#include "planner.h"
-#include "settings.h"
-#include "system.h"
+#include <Adafruit_GFX.h>
+#include <gfxfont.h>
+#include <Adafruit_SSD1306.h>
 
-long temps = 0;
-long temps_prec = 0;
+#include <Fonts/FreeSerifItalic18pt7b.h>
 
+Adafruit_SSD1306 display;
+
+//Var declaration
+byte pwmValue = 0;
+byte pwmDisplay = 0;
+bool light = 1;
+
+int read = 0;
+int previousRead = 0;
+
+int channelA = 0;
+int channelB = 0;
+int prevChannelA = 0;
+int prevChannelB = 0;
+
+
+//setting up the program.
 void setup(){
 
-	//calling the init functions of all program parts
-	debug_init();
-	system_init();
-	driver_init();
-	io_init();
-	I2C_init();
-	planner_init();
+	//Frist thing to do is to set the PWM pin as output, and setting it to 0.
+	//The laser can be hasardous, so it must be shut everytime we don't need it.
+	//Plus, being on it could cause unwanted insolating on a picture.
+	//In the main program, the direct access to register are preferred to speed up things.
+	//Set pin 11 (port B3) as output
+	DDRB |= (1 << 3);
+	//Set it to 0;
+	PORTB &= ~(0 << 3);
 
-//	io_send_message("Projecteur initialisé.");
+	//Set pin A0 and A1 as input
+	DDRC &= ~((1 << 0) | (1 << 1));
+
+	//Initialise PWM
+	pwmInit();
+
+	display.begin();
+	display.clearDisplay();
+	display.setTextColor(WHITE);
+	display.setFont(&FreeSerifItalic18pt7b);
+	display.setCursor(0, 25);
+	display.print("L: ");
+	display.print(pwmDisplay);
+	display.print('%');
+	display.display();
+
+//	Serial.begin(115200);
 }
 
 void loop(){
+	//update laser state.
+	if(light){
+		OCR2A = pwmValue;
+	} else {
+		OCR2A = 0;
+	}
 
-	//Debug: get the length of the main loop.
-/*	temps = micros();
-	_io_append_value(temps - temps_prec);
-	_io_append_nl();
-	temps_prec = temps;
-*/
-	system_main();
-	
+//	channelA = analogRead(A1);
+//	Serial.println(channelA);
+
+	//read the values from audio input.
+	//abort loop if we need to cut the laser.
+
+	//Read the value from pot.
+	read = analogRead(A0);
+	//read encoder
+	if(read != previousRead){
+		//If pot has been moved, change pwm value.
+		previousRead = read;
+		pwmValue = read / 4;
+		pwmDisplay = (read) / 10.24;
+
+		display.clearDisplay();
+		display.setCursor(0, 25);
+		display.print("L: ");
+		display.print(pwmDisplay);
+		display.print('%');
+		display.display();
+	//	Serial.println(read);
+	//	Serial.println(pwmDisplay);
+	//	Serial.println(pwmValue);
+	//	Serial.println();
+	}	
+}
+
+void pwmInit(){
+	//cancel interrupts when setting up the timer.
+	cli();
+
+	//First set all registers to 0;
+	TCCR2A = 0;
+	TCCR2B = 0;
+	TCNT2 = 0;
+	OCR2A = 0;
+
+	//Set PWM in phase correct mode, no prescaller, clear on up-couting, set on down-counting.
+	TCCR2A |= (1 << COM2A1) | (1 << WGM21) | (1 << WGM20);		//Clear OC2A up-counting; fast PWM.
+	TCCR2B |= (1 << CS20);										//No prescaller.
+
+	//Enable interrupt again.
+	sei();
 }
